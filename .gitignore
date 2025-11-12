@@ -1,0 +1,51 @@
+# ---------------------------------
+# Backend (Java / Maven / Spring Boot)
+# ---------------------------------
+/backend/target/
+/backend/.mvn/
+/backend/pom.xml.tag
+/backend/pom.xml.releaseBackup
+/backend/pom.xml.versionsBackup
+/backend/pom.xml.next
+/backend/release.properties
+/backend/dependency-reduced-pom.xml
+/backend/buildNumber.properties
+
+# ログファイル
+*.log
+
+# ---------------------------------
+# Frontend (Node.js / React)
+# ---------------------------------
+/frontend/node_modules/
+/frontend/build/
+/frontend/.pnp*
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# ---------------------------------
+# IDE & OS
+# ---------------------------------
+# IntelliJ
+.idea/
+*.iml
+*.iws
+
+# VSCode
+.vscode/
+
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# ---------------------------------
+# 機密情報 (Credentials)
+# ---------------------------------
+# リモート（本番）環境用のDB接続情報
+/backend/src/main/resources/application-remote.properties
