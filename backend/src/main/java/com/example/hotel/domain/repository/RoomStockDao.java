@@ -10,10 +10,11 @@ import java.util.List;
 @Dao
 @ConfigAutowireable
 public interface RoomStockDao {
-    /**
-     * 部屋タイプごとの総在庫と定員を取得する
-     * @return RoomStockInfoのリスト
-     */
-    @Select
-    List<RoomStockInfo> selectRoomStockInfo();
+  /**
+   * 部屋タイプごとの総在庫と定員を取得する
+   *
+   * @return RoomStockInfoのリスト
+   */
+  @Select
+  List<RoomStockInfo> selectRoomStockInfo();
 }

@@ -1,15 +1,29 @@
-/* --- フォーム関連 --- */
+/* --- 検索セクション (TopPage.jsx と整合) --- */
 
-.form-section {
+.search-section {
   margin-bottom: 25px;
 }
 
-.form-grid {
+.search-form {
   display: grid;
   /* 画面仕様書 (1-A) に合わせ 4カラムを基本とする */
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
+
+/* レスポンシブ（幅が狭いときは2→1カラムへ） */
+@media (max-width: 1024px) {
+  .search-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .search-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- フォーム共通 --- */
 
 .form-group {
   display: flex;
@@ -48,4 +62,32 @@
 }
 .form-group input[type='date']::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
+}
+
+/* --- フォームアクション --- */
+.form-actions {
+  grid-column: 1 / -1; /* ボタン行は横いっぱい */
+  display: flex;
+  justify-content: flex-end;
+}
+
+.search-button {
+  padding: 12px 24px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.search-button:hover {
+  background-color: #0056b3;
+}
+
+/* --- 予備セクション（後工程で利用） --- */
+.refine-section,
+.results-section,
+.no-results-section {
+  margin-top: 24px;
 }
