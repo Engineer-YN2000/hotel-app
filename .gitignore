@@ -14,7 +14,6 @@
 /backend/.project
 /backend/.factorypath
 /backend/.settings/
-/backend/spotless/
 
 # ログファイル
 *.log
