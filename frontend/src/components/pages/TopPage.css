@@ -1,0 +1,51 @@
+/* --- フォーム関連 --- */
+
+.form-section {
+  margin-bottom: 25px;
+}
+
+.form-grid {
+  display: grid;
+  /* 画面仕様書 (1-A) に合わせ 4カラムを基本とする */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.95em;
+}
+
+.form-group input[type='text'],
+.form-group input[type='date'],
+.form-group input[type='number'],
+.form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-sizing: border-box; /* inputの幅が親要素をはみ出ないように */
+  font-size: 1em;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #007bff;
+  outline: none;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.25);
+}
+
+/* --- Input[type=date] のカレンダーアイコン --- */
+.form-group input[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+}
+.form-group input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
