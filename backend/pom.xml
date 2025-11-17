@@ -115,10 +115,13 @@
                 <version>2.43.0</version>
                 <configuration>
                     <java>
-                        <googleJavaFormatter>
-                            <version>1.17.0</version>
-                            <style>GOOGLE</style>
-                        </googleJavaFormatter>
+                        <!-- Switch to Eclipse JDT formatter to avoid JDK 21 GJF incompatibility -->
+                        <eclipse>
+                            <!-- JDT 4.29+ supports Java 21 syntax -->
+                            <version>4.29</version>
+                            <file>${project.basedir}/spotless/eclipse-java-google-style.xml</file>
+                        </eclipse>
+                        <removeUnusedImports/>
                     </java>
                 </configuration>
             </plugin>

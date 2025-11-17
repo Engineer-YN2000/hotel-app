@@ -74,7 +74,7 @@ repos:
         language: system
         # pom.xml で定義した spotless プラグインを実行
         entry: mvn
-        args: ["--file", "backend/pom.xml", "checkstyle:check"]
+        args: ["--file", "backend/pom.xml", "spotless:apply"]
         files: ^backend/src/main/java/.*\.(java)$
         pass_filenames: false
 
