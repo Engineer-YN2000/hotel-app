@@ -1,0 +1,110 @@
+/* --- 全体スタイル --- */
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+  line-height: 1.6;
+  margin: 0;
+  padding: 20px;
+}
+
+/* --- コンテナ --- */
+.container {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* --- ヘッダー・タイトル --- */
+header {
+  border-bottom: 2px solid #eee;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+header h1 {
+  color: #005a9c;
+  margin: 0;
+  text-align: center;
+}
+
+h2 {
+  color: #005a9c;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+  margin-top: 30px;
+}
+
+/* --- ボタン --- */
+.button-container {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+
+.button-container.center {
+  justify-content: center;
+}
+
+.btn {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  transition:
+    background-color 0.3s ease,
+    transform 0.1s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* プライマリ（検索、確認へ、確定） */
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* セカンダリ（修正） */
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+/* デンジャー（キャンセル） */
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+/* リンクボタン（トップへ戻る） */
+.btn-link {
+  background-color: #f8f9fa;
+  color: #007bff;
+  border: 1px solid #ddd;
+}
+.btn-link:hover {
+  background-color: #e2e6ea;
+}

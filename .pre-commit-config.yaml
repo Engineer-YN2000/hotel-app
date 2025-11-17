@@ -20,11 +20,22 @@ repos:
       - id: prettier-format
         name: prettier-format
         language: system
-        # frontend/package.json の 'format' スクリプトを実行
-        entry: npm
-        # モノレポ構成のため、frontend ディレクトリ内で実行する
-        args: [run, format, --prefix, frontend]
+        # frontend 直下で実行し、渡されたパスから 'frontend/' を取り除いた上で npx prettier を実行
+        entry: bash
+        args:
+          - -lc
+          - |
+            set -e
+            cd frontend
+            files=()
+            for f in "$@"; do files+=("${f#frontend/}"); done
+            if [ "${#files[@]}" -eq 0 ]; then
+              npx --yes prettier@^3.3.3 --write "src/**/*.{js,jsx,css,json}"
+            else
+              npx --yes prettier@^3.3.3 --write "${files[@]}"
+            fi
         files: ^frontend/src/.*\.(js|jsx|css|json)$
+        pass_filenames: true
 
   # ---------------------------------------------------
   # 3. ESLint (リンター)
@@ -35,10 +46,22 @@ repos:
       - id: eslint-lint-fix
         name: eslint-lint-fix
         language: system
-        # frontend/package.json の 'lint:fix' スクリプトを実行
-        entry: npm
-        args: [run, lint:fix, --prefix, frontend]
+        # frontend 直下で実行し、渡されたパスから 'frontend/' を取り除いて ESLint に渡す
+        entry: bash
+        args:
+          - -lc
+          - |
+            set -e
+            cd frontend
+            files=()
+            for f in "$@"; do files+=("${f#frontend/}"); done
+            if [ "${#files[@]}" -eq 0 ]; then
+              npm run -s lint:fix -- "src/**/*.{js,jsx}"
+            else
+              npm run -s lint:fix -- "${files[@]}"
+            fi
         files: ^frontend/src/.*\.(js|jsx)$
+        pass_filenames: true
 
   # ---------------------------------------------------
   # 4. Java フォーマッター (Spotless)
@@ -50,10 +73,10 @@ repos:
         name: java-spotless-format
         language: system
         # pom.xml で定義した spotless プラグインを実行
-        entry: spotless:apply
+        entry: mvn
+        args: ["--file", "backend/pom.xml", "checkstyle:check"]
         files: ^backend/src/main/java/.*\.(java)$
-        # ビルド全体（target）を再実行しないよう 'process-sources' フェーズを指定
-        args: [process-sources]
+        pass_filenames: false
 
   # ---------------------------------------------------
   # 5. Java リンター (Checkstyle)
@@ -65,5 +88,7 @@ repos:
         name: java-checkstyle-lint
         language: system
         # pom.xml で定義した checkstyle プラグインを実行
-        entry: checkstyle:check
+        entry: mvn
+        args: ["--file", "backend/pom.xml", "checkstyle:check"]
         files: ^backend/src/main/java/.*\.(java)$
+        pass_filenames: false
