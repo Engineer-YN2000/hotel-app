@@ -91,3 +91,73 @@
 .no-results-section {
   margin-top: 24px;
 }
+
+/* --- 絞り込みブロック (C-020) --- */
+.refinement-group {
+  grid-column: 1 / -1;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 15px;
+  background-color: #fcfcfc;
+}
+
+.refinement-group h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.1em;
+  color: #005a9c;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+/* --- チェックボックス（地域詳細用など） --- */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-group input[type='checkbox'] {
+  margin-right: 8px;
+  width: auto;
+  cursor: pointer;
+}
+
+.checkbox-group label {
+  font-weight: 400;
+  margin-bottom: 0;
+  font-size: 0.95em;
+  cursor: pointer;
+}
+
+/* --- 価格帯絞り込み (C-022) --- */
+.price-filter-group {
+  border-top: 1px dashed #ccc;
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.price-filter-group label {
+  font-weight: 600;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.price-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.price-filter-controls input[type='number'] {
+  width: 100px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}

@@ -1,0 +1,102 @@
+/* --- 検索結果カード (C-030)  --- */
+/* (style.css [cite: 121-177] より) */
+.results-section h2 {
+  margin-top: 40px;
+}
+.hotel-result-card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 25px;
+  background: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+.hotel-header {
+  background-color: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #ddd;
+}
+.hotel-header h3 {
+  margin: 0;
+  color: #005a9c;
+}
+.room-type-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.room-type-table th,
+.room-type-table td {
+  padding: 12px 20px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+  vertical-align: middle;
+}
+.room-type-table tr:last-child td {
+  border-bottom: none;
+}
+.room-type-table th {
+  background-color: #fdfdfd;
+  font-weight: 600;
+}
+.room-capacity {
+  font-size: 0.9em;
+  color: #555;
+  display: block;
+}
+.room-select-input {
+  width: 80px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: center;
+}
+.room-price {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #d90429;
+}
+.room-price-per-night {
+  font-size: 0.9em;
+  font-weight: 400;
+  color: #555;
+  display: block;
+}
+.remaining-rooms {
+  color: #e63946;
+  font-weight: 600;
+}
+.hotel-booking-footer {
+  padding: 15px 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.booking-summary {
+  text-align: left;
+  flex-grow: 1;
+}
+.booking-summary .total-price-display {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: #333;
+}
+.booking-summary .total-price-note {
+  font-size: 0.85em;
+  color: #666;
+  display: block;
+}
+
+/* --- 結果なし (C-040)  --- */
+/* (style.css より) */
+.no-results-message {
+  text-align: center;
+  padding: 40px 20px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-top: 30px;
+  font-size: 1.1em;
+  color: #555;
+}

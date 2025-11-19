@@ -2,7 +2,9 @@ package com.example.hotel.config;
 
 import com.example.hotel.domain.model.RoomStockInfo;
 import com.example.hotel.domain.repository.RoomStockDao;
-import com.example.hotel.domain.service.RoomStockCacheService;
+import com.example.hotel.domain.service.CacheService;
+import com.example.hotel.domain.model.Prefecture;
+import com.example.hotel.domain.repository.PrefectureDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
@@ -10,21 +12,27 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 起動時に部屋タイプ在庫をDBから取得しキャッシュへ格納する初期化ロジック。最大3回リトライし失敗時は起動を中断する。
+ */
 @Component
 @Slf4j
 public class StartupDatabaseLoader implements CommandLineRunner {
+  private final PrefectureDao prefectureDao;
   private final RoomStockDao roomStockDao;
-  private final RoomStockCacheService cacheService;
+  private final CacheService cacheService;
 
   // Doma2 DaoとキャッシュサービスをDI
-  public StartupDatabaseLoader(RoomStockDao roomStockDao, RoomStockCacheService cacheService) {
+  public StartupDatabaseLoader(PrefectureDao prefectureDao, RoomStockDao roomStockDao,
+      CacheService cacheService) {
+    this.prefectureDao = prefectureDao;
     this.roomStockDao = roomStockDao;
     this.cacheService = cacheService;
   }
 
   @Override
   public void run(String... args) throws Exception {
-    log.info("サーバー起動プロセス開始：在庫キャッシュの読み込み中...");
+    log.info("サーバー起動プロセス開始：キャッシュの読み込み中...");
 
     final int MAX_RETRIES = 3;
     final int RETRY_WAIT_SECONDS = 5;
@@ -46,8 +54,17 @@ public class StartupDatabaseLoader implements CommandLineRunner {
           log.info("DB検索成功。{}件の部屋タイプ情報をキャッシュしました。", stockInfoList.size());
         }
 
+        List<Prefecture> prefectures = prefectureDao.selectAll();
+        if (prefectures.isEmpty()) {
+          log.warn("DB検索成功。しかし、都道府県情報が0件です。");
+        }
+        else {
+          log.info("DB検索成功。{}件の都道府県情報をキャッシュしました。", prefectures.size());
+        }
+
         // キャッシュサービスにデータを登録
         cacheService.updateCache(stockInfoList);
+        cacheService.updatePrefectureCache(prefectures);
         success = true;
         break;
       }

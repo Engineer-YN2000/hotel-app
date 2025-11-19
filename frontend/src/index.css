@@ -108,3 +108,38 @@ h2 {
 .btn-link:hover {
   background-color: #e2e6ea;
 }
+
+/* --- バリデーションエラー (1-D)  --- */
+/* (style.css より) */
+.capacity-error-message {
+  color: #cc0000;
+  font-weight: 600;
+  font-size: 0.9em;
+  display: block;
+  margin-bottom: 5px;
+  /* 仕様書  では右寄せだが、フッター全体が広いため左寄せに変更 */
+  text-align: left;
+}
+
+.date-error-message {
+  color: #cc0000;
+  font-weight: 600;
+  font-size: 0.9em;
+  display: block;
+  margin-bottom: 15px;
+  padding: 10px;
+  background-color: #ffe6e6;
+  border: 1px solid #ffcccc;
+  border-radius: 4px;
+  text-align: center;
+}
+.btn-disabled {
+  background-color: #aaa;
+  color: #eee;
+  cursor: not-allowed;
+  border-color: #aaa;
+}
+.btn-disabled:hover {
+  background-color: #aaa;
+  color: #eee;
+}

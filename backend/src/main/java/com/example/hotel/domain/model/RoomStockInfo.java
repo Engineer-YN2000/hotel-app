@@ -4,13 +4,15 @@ import org.seasar.doma.Entity;
 import org.seasar.doma.Id;
 import org.seasar.doma.Column;
 
-import lombok.Getter;
+import lombok.Value;
+import lombok.AllArgsConstructor;
 
 /**
  * 部屋タイプごとの総在庫・定員情報(DB検索結果)を保持するドメインクラス
  */
-@Getter
+@Value
 @Entity(immutable = true)
+@AllArgsConstructor
 public class RoomStockInfo {
 
   /**
@@ -37,15 +39,4 @@ public class RoomStockInfo {
    */
   @Column(name = "total_stock")
   private final Integer totalStock;
-
-  /**
-   * All-args constructor for Doma immutable entity
-   */
-  public RoomStockInfo(Integer roomTypeId, String roomTypeName, Integer roomCapacity,
-      Integer totalStock) {
-    this.roomTypeId = roomTypeId;
-    this.roomTypeName = roomTypeName;
-    this.roomCapacity = roomCapacity;
-    this.totalStock = totalStock;
-  }
 }

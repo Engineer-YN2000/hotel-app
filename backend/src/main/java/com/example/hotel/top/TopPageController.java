@@ -1,23 +1,33 @@
 package com.example.hotel.top;
 
-import com.example.hotel.domain.service.RoomStockCacheService;
+import com.example.hotel.domain.service.CacheService;
+import com.example.hotel.domain.service.SearchService;
+import com.example.hotel.presentation.dto.SearchCriteriaDto;
+import com.example.hotel.presentation.dto.SearchResultDto;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 /**
  * P-010 (トップページ) 関連のコントローラ。 起動時に {@link com.example.hotel.config.StartupDatabaseLoader} が Doma
- * を通じてDBから取得し、 {@link com.example.hotel.domain.service.RoomStockCacheService} に格納した
+ * を通じてDBから取得し、 {@link com.example.hotel.domain.service.CacheService} に格納した
  * 「部屋タイプごとの定員・総在庫」のキャッシュをフロントへ返すAPIを提供します。
  */
 @RestController
+@Slf4j
 public class TopPageController {
 
-  private final RoomStockCacheService cacheService;
+  private final CacheService cacheService;
+  private final SearchService searchService;
 
-  public TopPageController(RoomStockCacheService cacheService) {
+  public TopPageController(CacheService cacheService, SearchService searchService) {
     this.cacheService = cacheService;
+    this.searchService = searchService;
   }
 
   /**
@@ -26,9 +36,39 @@ public class TopPageController {
    * などの静的リソースはWorkbox等で配信／キャッシュされ、 本APIは動的データのみを返します。
    */
   @GetMapping("/api/initial-data")
-  public Map<String, Object> getInitialData() {
+  public ResponseEntity<Map<String, Object>> getInitialData() {
     // 起動時にロード済みの「部屋タイプごとの定員・総在庫」をキャッシュから取得して返す
-    var roomTypes = cacheService.getStockCache();
-    return Map.of("message", "サーバー起動成功", "roomTypesCacheData", roomTypes);
+    // 都道府県はPrefectureオブジェクトから名前のリストを抽出
+    List<String> prefectureNames = cacheService.getPrefectureCache().stream()
+        .map(prefecture -> prefecture.getPrefectureName()).toList();
+
+    Map<String, Object> data = Map.of("roomTypesCacheData", cacheService.getStockCache(),
+        "prefectures", prefectureNames, "recommendedCheckin", LocalDate.now().plusDays(1),
+        "recommendedCheckout", LocalDate.now().plusDays(2));
+    return ResponseEntity.ok(data);
+  }
+
+  /**
+   * 空室検索API。検索条件を受け取り、利用可能なホテル/部屋タイプの結果を返す。 受け取り: checkInDate, checkOutDate (ISO-8601), areaId,
+   * guestCount 成功時: 200 OK + SearchResultDto、失敗時: 500 Internal Server Error
+   *
+   * @param criteria
+   *          リクエストからバインドされた検索条件
+   * @return 検索結果のレスポンス
+   */
+  @GetMapping("/api/search")
+  public ResponseEntity<SearchResultDto> search(SearchCriteriaDto criteria) {
+    try {
+      log.info("検索リクエスト受信: {}", criteria);
+      SearchResultDto result = searchService.searchAvailableHotels(criteria);
+      log.info("検索レスポンス: ホテル数={}", result.getHotels() != null ? result.getHotels().size() : 0);
+
+      return ResponseEntity.ok(result);
+
+    }
+    catch (Exception e) {
+      log.error("空室検索中に予期せぬエラーが発生しました", e);
+      return ResponseEntity.internalServerError().build();
+    }
   }
 }
