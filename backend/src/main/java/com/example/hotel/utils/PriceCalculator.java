@@ -1,28 +1,65 @@
 package com.example.hotel.utils;
 
-import java.util.Random;
+import java.time.LocalDate;
 
 /**
- * 価格計算ユーティリティクラス 部屋タイプの価格を効率的に生成します
+ * 価格計算ユーティリティクラス ホテルごとの料金体系とその日の需要定数を考慮したダイナミックプライシングを実装
  */
 public class PriceCalculator {
 
-  private static final Random RANDOM = new Random();
-  private static final int BASE_PRICE = 10000;
+  private static final int BASE_PRICE_PER_PERSON = 8000; // 一人当たりの基準価格
+  private static final double[] CAPACITY_MULTIPLIERS = {1.0, // 1人: 基準価格
+      0.9, // 2人: 10%割引
+      0.85, // 3人: 15%割引
+      0.8, // 4人: 20%割引
+      0.75 // 5人以上: 25%割引
+  };
 
   /**
-   * 部屋の定員に基づいて価格を計算します
+   * 部屋の定員に基づいて価格を計算します（後方互換性のため）
    *
    * @param capacity
    *          部屋の定員
-   * @return 計算された価格
+   * @return 計算された価格（部屋全体）
    */
   public static Integer calculatePrice(Integer capacity) {
+    return calculatePrice(capacity, 1L, LocalDate.now());
+  }
+
+  /**
+   * ホテルIDと日付を考慮したダイナミックプライシング価格計算 同じホテルでは同じ料金体系を使用し、その日の需要定数で価格を調整
+   *
+   * @param capacity
+   *          部屋の定員
+   * @param hotelId
+   *          ホテルID（料金体系の決定に使用）
+   * @param date
+   *          宿泊予定日（需要定数の決定に使用）
+   * @return 計算された価格（部屋全体）
+   */
+  public static Integer calculatePrice(Integer capacity, Long hotelId, LocalDate date) {
     if (capacity == null || capacity <= 0) {
-      return BASE_PRICE;
+      return BASE_PRICE_PER_PERSON;
     }
 
-    int variationAmount = RANDOM.nextInt(15) * 1000;
-    return (BASE_PRICE + variationAmount) * capacity;
+    // ホテルごとの料金体系係数（ホテルIDに基づく一貫した値）
+    double hotelPriceMultiplier = 1.0 + ((hotelId % 5) * 0.1 - 0.2); // 0.8〜1.2の範囲
+
+    // capacityに基づく基本価格の計算
+    double capacityMultiplier = capacity <= CAPACITY_MULTIPLIERS.length
+        ? CAPACITY_MULTIPLIERS[capacity - 1]
+        : CAPACITY_MULTIPLIERS[CAPACITY_MULTIPLIERS.length - 1];
+
+    int basePrice = (int) (BASE_PRICE_PER_PERSON * capacityMultiplier * capacity
+        * hotelPriceMultiplier);
+
+    // その日の需要定数（日付に基づく一貫した値）
+    int dayOfYear = date.getDayOfYear();
+    double demandFactor = 0.9 + ((dayOfYear % 20) * 0.01); // 0.9〜1.09の範囲
+
+    // 最終価格の計算
+    int finalPrice = (int) (basePrice * demandFactor);
+
+    return Math.max(finalPrice, BASE_PRICE_PER_PERSON); // 最低価格を保証
   }
 }

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
  * JavaのMessageSourceが完全に読み込まれるまで待機する機能と同等
  */
 const I18nProvider = ({ children }) => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const I18nProvider = ({ children }) => {
           fontSize: '18px',
         }}
       >
-        初期化中...
+        {t('messages.loading.initializing', '初期化中...')}
       </div>
     );
   }
