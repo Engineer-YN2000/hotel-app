@@ -6,16 +6,34 @@ import { useTranslation } from 'react-i18next';
  * JavaのMessageSourceが完全に読み込まれるまで待機する機能と同等
  */
 const I18nProvider = ({ children }) => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (i18n.isInitialized) {
-      setIsReady(true);
-    } else {
-      i18n.on('initialized', () => {
+    const checkInitialization = () => {
+      if (i18n.isInitialized) {
         setIsReady(true);
-      });
+        return true;
+      }
+      return false;
+    };
+
+    if (!checkInitialization()) {
+      const handleInitialized = () => {
+        setIsReady(true);
+      };
+
+      i18n.on('initialized', handleInitialized);
+
+      // フォールバック: 一定時間後に再チェック
+      const timeoutId = setTimeout(() => {
+        checkInitialization();
+      }, 1000);
+
+      return () => {
+        i18n.off('initialized', handleInitialized);
+        clearTimeout(timeoutId);
+      };
     }
   }, [i18n]);
 
@@ -30,7 +48,7 @@ const I18nProvider = ({ children }) => {
           fontSize: '18px',
         }}
       >
-        初期化中...
+        {t('messages.loading.initializing', '初期化中...')}
       </div>
     );
   }

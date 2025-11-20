@@ -26,10 +26,10 @@ const SearchResults = ({ searchResult, guestCount }) => {
       });
     });
 
-    // 検索時の「宿泊予定人数(合計)」 > 選択した室数の「合計定員」か？
+    // 部屋が選択されており、かつ宿泊予定人数が選択した部屋の合計定員を超えている場合にエラー
     if (
-      guestCount > totalGuestsInSelectedRooms &&
-      totalGuestsInSelectedRooms > 0
+      totalGuestsInSelectedRooms > 0 &&
+      guestCount > totalGuestsInSelectedRooms
     ) {
       capacityError = true;
     }
@@ -144,11 +144,13 @@ const SearchResults = ({ searchResult, guestCount }) => {
                   })}
                 </span>
               )}
-              {/* TODO: 合計金額の表示 */}
+              {/* TODO: 合計金額の表示機能は実装中のため、一時的に非表示 */}
+              {/*
               <span className="total-price-display">
                 {t('labels.totalAmount')}: ¥0
               </span>
               <span className="total-price-note">{t('labels.priceNote')}</span>
+              */}
             </div>
             {/* C-032 予約ボタン  */}
             <button

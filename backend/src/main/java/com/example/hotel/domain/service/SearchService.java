@@ -67,19 +67,17 @@ public class SearchService {
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
       Map<Integer, RoomStockInfo> stockCache) {
 
-    Map<Integer, RoomTypeResultDto> roomTypeResults = dbRooms.stream().map(dbRoom -> {
-      RoomStockInfo cacheInfo = stockCache.get(dbRoom.getRoomTypeId());
-      if (cacheInfo == null) {
-        return null;
-      }
+    Map<Integer, RoomTypeResultDto> roomTypeResults = dbRooms.stream()
+        .filter(dbRoom -> stockCache.containsKey(dbRoom.getRoomTypeId())).map(dbRoom -> {
+          RoomStockInfo cacheInfo = stockCache.get(dbRoom.getRoomTypeId());
+          int totalStock = cacheInfo.getTotalStock();
+          int reservedCount = dbRoom.getReservedCount();
+          int availableStock = totalStock - reservedCount;
 
-      int totalStock = cacheInfo.getTotalStock();
-      int reservedCount = dbRoom.getReservedCount();
-      int availableStock = totalStock - reservedCount;
-
-      return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
-          cacheInfo.getRoomCapacity(), availableStock);
-    }).filter(roomDto -> roomDto != null && roomDto.getAvailableStock() > 0)
+          return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
+              cacheInfo.getRoomCapacity(), availableStock, Long.valueOf(dbRoom.getHotelId()),
+              java.time.LocalDate.now());
+        }).filter(roomDto -> roomDto.getAvailableStock() > 0)
         .collect(Collectors.toMap(RoomTypeResultDto::getRoomTypeId, dto -> dto));
 
     Map<Integer, List<AvailableRoomInfo>> groupedByHotel = dbRooms.stream()

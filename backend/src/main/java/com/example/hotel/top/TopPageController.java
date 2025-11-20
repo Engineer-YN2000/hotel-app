@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,12 +39,17 @@ public class TopPageController {
   @GetMapping("/api/initial-data")
   public ResponseEntity<Map<String, Object>> getInitialData() {
     // 起動時にロード済みの「部屋タイプごとの定員・総在庫」をキャッシュから取得して返す
-    // 都道府県はPrefectureオブジェクトから名前のリストを抽出
-    List<String> prefectureNames = cacheService.getPrefectureCache().stream()
-        .map(prefecture -> prefecture.getPrefectureName()).toList();
+    // 都道府県はIDと名前を含むオブジェクトリストとして返す（より堅牢なUI実装のため）
+    List<Map<String, Object>> prefectureList = cacheService.getPrefectureCache().stream()
+        .map(prefecture -> {
+          Map<String, Object> prefMap = new HashMap<>();
+          prefMap.put("id", prefecture.getPrefectureId());
+          prefMap.put("name", prefecture.getPrefectureName());
+          return prefMap;
+        }).toList();
 
     Map<String, Object> data = Map.of("roomTypesCacheData", cacheService.getStockCache(),
-        "prefectures", prefectureNames, "recommendedCheckin", LocalDate.now().plusDays(1),
+        "prefectures", prefectureList, "recommendedCheckin", LocalDate.now().plusDays(1),
         "recommendedCheckout", LocalDate.now().plusDays(2));
     return ResponseEntity.ok(data);
   }
@@ -59,6 +65,18 @@ public class TopPageController {
   @GetMapping("/api/search")
   public ResponseEntity<SearchResultDto> search(SearchCriteriaDto criteria) {
     try {
+      // ビジネスロジック違反の検証（システムの整合性を脅かす不正な値）
+      if (criteria.getPrefectureId() == null || criteria.getPrefectureId() <= 0) {
+        log.warn("ビジネスルール違反 - 無効な都道府県ID: {}", criteria.getPrefectureId());
+        return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+      }
+
+      if (criteria.getGuestCount() == null || criteria.getGuestCount() <= 0
+          || criteria.getGuestCount() > 99) {
+        log.warn("ビジネスルール違反 - 無効な宿泊人数: {}", criteria.getGuestCount());
+        return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+      }
+
       log.info("検索リクエスト受信: {}", criteria);
       SearchResultDto result = searchService.searchAvailableHotels(criteria);
       log.info("検索レスポンス: ホテル数={}", result.getHotels() != null ? result.getHotels().size() : 0);
@@ -66,9 +84,15 @@ public class TopPageController {
       return ResponseEntity.ok(result);
 
     }
+    catch (IllegalArgumentException e) {
+      // ビジネスロジック由来のバリデーションエラー（システムの整合性違反）
+      log.warn("ビジネスロジック違反: {}", e.getMessage());
+      return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+    }
     catch (Exception e) {
+      // 予期せぬシステムエラー（DB接続エラー、外部API障害など）
       log.error("空室検索中に予期せぬエラーが発生しました", e);
-      return ResponseEntity.internalServerError().build();
+      return ResponseEntity.internalServerError().build(); // 500: サーバーエラー
     }
   }
 }

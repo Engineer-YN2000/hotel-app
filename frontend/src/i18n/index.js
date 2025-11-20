@@ -32,13 +32,22 @@ const resources = {
           prefectureRequired: '宿泊予定の都道府県を選択してください',
           guestCountMin: '宿泊人数は1名以上で入力してください',
           guestCountMax: '宿泊人数は99名以下で入力してください',
-          capacityError: '宿泊人数（{{guestCount}}名）に対して、お部屋の定員（合計{{totalCapacity}}名）が不足しています。',
+          capacityError:
+            '宿泊人数（{{guestCount}}名）に対して、お部屋の定員（合計{{totalCapacity}}名）が不足しています。',
         },
         api: {
           serverError:
             'サーバーエラーが発生しました。しばらく時間をおいて再度お試しください',
           networkError:
             'ネットワークエラーが発生しました。接続状況をご確認ください',
+          invalidRequest:
+            'リクエスト形式に問題があります。画面を再読み込みして再度お試しください',
+          notFound:
+            'リクエストされた機能が見つかりません。画面を再読み込みして再度お試しください',
+          methodNotAllowed:
+            '許可されていない操作です。画面を再読み込みして再度お試しください',
+          businessRuleViolation:
+            '入力値がシステムの制約に違反しています。正しい値を入力してください',
           searchFailed: '検索に失敗しました。条件を変更して再度お試しください',
         },
         general: {
@@ -101,7 +110,8 @@ const resources = {
           serverErrorTitle: 'サーバーエラー',
           apologyMessage: '大変申し訳ございません。',
           unexpectedError: 'サーバー側で予期せぬエラーが発生しました。',
-          retryOrBackToTop: '時間をおいて再度お試しいただくか、トップページへお戻りください。',
+          retryOrBackToTop:
+            '時間をおいて再度お試しいただくか、トップページへお戻りください。',
         },
       },
     },
@@ -128,7 +138,8 @@ const resources = {
           prefectureRequired: 'Please select your preferred prefecture',
           guestCountMin: 'Number of guests must be 1 or more',
           guestCountMax: 'Number of guests must be 99 or less',
-          capacityError: 'The room capacity (total {{totalCapacity}} guests) is insufficient for the number of guests ({{guestCount}} guests).',
+          capacityError:
+            'The room capacity (total {{totalCapacity}} guests) is insufficient for the number of guests ({{guestCount}} guests).',
         },
         api: {
           serverError: 'A server error occurred. Please try again later',

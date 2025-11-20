@@ -13,7 +13,7 @@ import './TopPage.css';
  * P-010 ホテル検索ページ
  */
 const TopPage = () => {
-  const { t, i18n } = useTranslation(); // MessageSourceと同等の機能
+  const { t } = useTranslation(); // MessageSourceと同等の機能
 
   // 状態定義 (1-A) [cite: 26-34]
   const [showRefineForm, setShowRefineForm] = useState(false); // C-020
@@ -24,7 +24,7 @@ const TopPage = () => {
 
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
-  const [guestCount, setGuestCount] = useState(1); // 1-D  の検証用に保持
+  const [guestCount, setGuestCount] = useState(2); // 1-D  の検証用に保持（フォームのdefaultValueと統一）
 
   // 日付バリデーション用の状態
   const [checkInDate, setCheckInDate] = useState('');
@@ -298,13 +298,13 @@ const TopPage = () => {
               <select
                 id="prefecture"
                 name="prefecture"
-                defaultValue="27"
+                defaultValue=""
                 required
               >
                 <option value="">{t('labels.selectPrefecture')}</option>
-                {prefectures.map((prefecture, index) => (
-                  <option key={index + 1} value={index + 1}>
-                    {prefecture}
+                {prefectures.map((prefecture) => (
+                  <option key={prefecture.id} value={prefecture.id}>
+                    {prefecture.name}
                   </option>
                 ))}
               </select>
