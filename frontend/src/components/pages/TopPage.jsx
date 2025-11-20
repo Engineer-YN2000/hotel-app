@@ -15,11 +15,6 @@ import './TopPage.css';
 const TopPage = () => {
   const { t, i18n } = useTranslation(); // MessageSourceと同等の機能
 
-  // デバッグ用: i18nextの状態確認
-  console.log('i18n ready:', i18n.isInitialized);
-  console.log('current language:', i18n.language);
-  console.log('test translation:', t('app.title'));
-
   // 状態定義 (1-A) [cite: 26-34]
   const [showRefineForm, setShowRefineForm] = useState(false); // C-020
   const [showResults, setShowResults] = useState(false); // C-030
@@ -38,7 +33,8 @@ const TopPage = () => {
   const [initialCheckOutDate, setInitialCheckOutDate] = useState(''); // 初期チェックアウト日を保持
 
   // バリデーションフック（React i18next版）を使用
-  const { validateDates, handleApiError, getError, setError, clearError } = useI18nValidation();
+  const { validateDates, handleApiError, getError, setError, clearError } =
+    useI18nValidation();
 
   // 都道府県リスト状態
   const [prefectures, setPrefectures] = useState([]);
@@ -80,8 +76,6 @@ const TopPage = () => {
     fetchInitialData();
   }, [clearError]);
 
-
-
   // チェックイン日変更時の処理
   const handleCheckInChange = (e) => {
     const newCheckInDate = e.target.value;
@@ -99,7 +93,12 @@ const TopPage = () => {
       clearError('dateValidation');
     } else {
       // チェックイン日が空の場合はバリデーション実行
-      const error = validateDates(newCheckInDate, checkOutDate, initialCheckInDate, initialCheckOutDate);
+      const error = validateDates(
+        newCheckInDate,
+        checkOutDate,
+        initialCheckInDate,
+        initialCheckOutDate,
+      );
       if (error) setError('dateValidation', error);
       else clearError('dateValidation');
     }
@@ -109,11 +108,15 @@ const TopPage = () => {
       const selectedDate = new Date(newCheckInDate);
       const initialDate = new Date(initialCheckInDate);
       if (selectedDate < initialDate) {
-        const error = validateDates(newCheckInDate, checkOutDate, initialCheckInDate, initialCheckOutDate);
+        const error = validateDates(
+          newCheckInDate,
+          checkOutDate,
+          initialCheckInDate,
+          initialCheckOutDate,
+        );
         if (error) setError('dateValidation', error);
       }
     }
-
   };
 
   // チェックアウト日変更時の処理
@@ -122,7 +125,12 @@ const TopPage = () => {
     setCheckOutDate(newCheckOutDate);
 
     // チェックアウト日を能動的に変更した時のみバリデーションを実行
-    const error = validateDates(checkInDate, newCheckOutDate, initialCheckInDate, initialCheckOutDate);
+    const error = validateDates(
+      checkInDate,
+      newCheckOutDate,
+      initialCheckInDate,
+      initialCheckOutDate,
+    );
     if (error) setError('dateValidation', error);
     else clearError('dateValidation');
   };
@@ -141,7 +149,12 @@ const TopPage = () => {
     e.preventDefault();
 
     // 日付バリデーションチェック
-    const error = validateDates(checkInDate, checkOutDate, initialCheckInDate, initialCheckOutDate);
+    const error = validateDates(
+      checkInDate,
+      checkOutDate,
+      initialCheckInDate,
+      initialCheckOutDate,
+    );
     if (error) {
       setError('dateValidation', error);
       return;
@@ -219,7 +232,13 @@ const TopPage = () => {
 
   return (
     <div className="container">
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <h1>{t('app.title')}</h1>
         <LanguageSwitcher />
       </header>
@@ -249,7 +268,9 @@ const TopPage = () => {
                 id="checkin-date"
                 name="checkin-date"
                 value={checkInDate}
-                min={initialCheckInDate || new Date().toISOString().split('T')[0]}
+                min={
+                  initialCheckInDate || new Date().toISOString().split('T')[0]
+                }
                 onChange={handleCheckInChange}
                 required
               />
@@ -263,7 +284,9 @@ const TopPage = () => {
                 id="checkout-date"
                 name="checkout-date"
                 value={checkOutDate}
-                min={initialCheckOutDate || new Date().toISOString().split('T')[0]}
+                min={
+                  initialCheckOutDate || new Date().toISOString().split('T')[0]
+                }
                 onChange={handleCheckOutChange}
                 required
               />

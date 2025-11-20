@@ -32,6 +32,7 @@ const resources = {
           prefectureRequired: '宿泊予定の都道府県を選択してください',
           guestCountMin: '宿泊人数は1名以上で入力してください',
           guestCountMax: '宿泊人数は99名以下で入力してください',
+          capacityError: '宿泊人数（{{guestCount}}名）に対して、お部屋の定員（合計{{totalCapacity}}名）が不足しています。',
         },
         api: {
           serverError:
@@ -57,6 +58,20 @@ const resources = {
         selectPrefecture: '都道府県を選択',
         hotelSearch: 'ホテル検索',
         hotelReservationSite: 'ホテル予約サイト',
+        refineConditions: '絞り込み条件',
+        areaDetails: '地域詳細（選択された都道府県内）',
+        accommodationPrice: '宿泊金額（１泊１室あたり）',
+        searchResults: '検索結果',
+        roomType: '部屋タイプ',
+        priceFor2Nights: '価格（２泊分/１室）',
+        availability: '空室状況',
+        roomCount: '室数',
+        capacity: '定員: {{count}}名',
+        referencePerNight: '参考: ¥{{price}}/泊',
+        remainingRooms: '残り{{count}}部屋！',
+        roomsAvailable: '空室あり',
+        totalAmount: '合計金額',
+        priceNote: '（２泊 / 諸税込み）',
       },
 
       // ボタンテキスト（buttons.properties相当）
@@ -66,6 +81,9 @@ const resources = {
         retry: '再試行',
         back: '戻る',
         reset: 'リセット',
+        backToTop: 'トップへ戻る',
+        refineSearch: '再検索・絞り込み',
+        reserveSelectedRooms: '選択した部屋を予約',
       },
 
       // メッセージ（messages.properties相当）
@@ -78,6 +96,12 @@ const resources = {
           initializing: '初期化中...',
           searching: '検索中...',
           loading: '読み込み中...',
+        },
+        error: {
+          serverErrorTitle: 'サーバーエラー',
+          apologyMessage: '大変申し訳ございません。',
+          unexpectedError: 'サーバー側で予期せぬエラーが発生しました。',
+          retryOrBackToTop: '時間をおいて再度お試しいただくか、トップページへお戻りください。',
         },
       },
     },
@@ -104,6 +128,7 @@ const resources = {
           prefectureRequired: 'Please select your preferred prefecture',
           guestCountMin: 'Number of guests must be 1 or more',
           guestCountMax: 'Number of guests must be 99 or less',
+          capacityError: 'The room capacity (total {{totalCapacity}} guests) is insufficient for the number of guests ({{guestCount}} guests).',
         },
         api: {
           serverError: 'A server error occurred. Please try again later',
@@ -127,6 +152,20 @@ const resources = {
         selectPrefecture: 'Select Prefecture',
         hotelSearch: 'Hotel Search',
         hotelReservationSite: 'Hotel Reservation Site',
+        refineConditions: 'Refine Conditions',
+        areaDetails: 'Area Details (Within Selected Prefecture)',
+        accommodationPrice: 'Accommodation Price (Per Night Per Room)',
+        searchResults: 'Search Results',
+        roomType: 'Room Type',
+        priceFor2Nights: 'Price (2 Nights/1 Room)',
+        availability: 'Availability',
+        roomCount: 'Room Count',
+        capacity: 'Capacity: {{count}} guests',
+        referencePerNight: 'Reference: ¥{{price}}/night',
+        remainingRooms: 'Only {{count}} rooms left!',
+        roomsAvailable: 'Rooms Available',
+        totalAmount: 'Total Amount',
+        priceNote: '(2 Nights / Tax Included)',
       },
       buttons: {
         search: 'Search',
@@ -134,6 +173,9 @@ const resources = {
         retry: 'Retry',
         back: 'Back',
         reset: 'Reset',
+        backToTop: 'Back to Top',
+        refineSearch: 'Refine Search',
+        reserveSelectedRooms: 'Reserve Selected Rooms',
       },
       messages: {
         noResults: {
@@ -144,6 +186,12 @@ const resources = {
           initializing: 'Initializing...',
           searching: 'Searching...',
           loading: 'Loading...',
+        },
+        error: {
+          serverErrorTitle: 'Server Error',
+          apologyMessage: 'We sincerely apologize.',
+          unexpectedError: 'An unexpected error occurred on the server side.',
+          retryOrBackToTop: 'Please try again later or return to the top page.',
         },
       },
     },

@@ -1,0 +1,64 @@
+/* --- P-900 サーバーエラー画面のスタイル --- */
+
+.error-page-message {
+  text-align: center;
+  padding: 40px 20px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.error-page-message h2 {
+  color: #d32f2f;
+  font-size: 2em;
+  margin-bottom: 20px;
+  font-weight: bold;
+}
+
+.error-page-message p {
+  font-size: 1.1em;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.error-page-message p:last-of-type {
+  margin-bottom: 30px;
+}
+
+/* ボタンコンテナのスタイル */
+.button-container {
+  margin-top: 30px;
+}
+
+.button-container.center {
+  text-align: center;
+}
+
+/* エラーページ用のボタンスタイル */
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  font-size: 1em;
+  text-decoration: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.btn-link {
+  background-color: #007bff;
+  color: white;
+  border: 2px solid #007bff;
+}
+
+.btn-link:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.btn-link:active {
+  transform: translateY(0);
+}

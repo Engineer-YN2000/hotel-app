@@ -5,6 +5,8 @@ import com.example.hotel.domain.model.RoomStockInfo;
 import com.example.hotel.domain.repository.SearchDao;
 import com.example.hotel.presentation.dto.SearchCriteriaDto;
 import com.example.hotel.presentation.dto.SearchResultDto;
+import com.example.hotel.presentation.dto.HotelResultDto;
+import com.example.hotel.presentation.dto.RoomTypeResultDto;
 import lombok.extern.slf4j.Slf4j;
 import org.seasar.doma.jdbc.SelectOptions;
 import org.springframework.stereotype.Service;
@@ -38,7 +40,7 @@ public class SearchService {
     Map<Integer, RoomStockInfo> stockCache = cacheService.getStockCache();
     if (stockCache.isEmpty()) {
       log.warn("在庫キャッシュが空です。起動時ローダーを確認してください。");
-      return SearchResultDto.createEmptytResult();
+      return SearchResultDto.createEmptyResult();
     }
 
     // 都道府県IDで検索を実行
@@ -48,12 +50,11 @@ public class SearchService {
     List<AvailableRoomInfo> dbRooms = searchDao.searchAvailableRooms(searchPrefectureId,
         criteria.getCheckInDate(), criteria.getCheckOutDate(), SelectOptions.get());
 
-    List<SearchResultDto.HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms,
-        stockCache);
+    List<HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms, stockCache);
 
     if (hotelResults.isEmpty()) {
       log.info("検索結果が0件です。");
-      return SearchResultDto.createEmptytResult();
+      return SearchResultDto.createEmptyResult();
     }
 
     log.info("検索結果件数: {}", hotelResults.size());
@@ -63,24 +64,23 @@ public class SearchService {
   /**
    * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。
    */
-  private List<SearchResultDto.HotelResultDto> calculateHotelResultRooms(
-      List<AvailableRoomInfo> dbRooms, Map<Integer, RoomStockInfo> stockCache) {
+  private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
+      Map<Integer, RoomStockInfo> stockCache) {
 
-    Map<Integer, SearchResultDto.RoomTypeResultDto> roomTypeResults = dbRooms.stream()
-        .map(dbRoom -> {
-          RoomStockInfo cacheInfo = stockCache.get(dbRoom.getRoomTypeId());
-          if (cacheInfo == null) {
-            return null;
-          }
+    Map<Integer, RoomTypeResultDto> roomTypeResults = dbRooms.stream().map(dbRoom -> {
+      RoomStockInfo cacheInfo = stockCache.get(dbRoom.getRoomTypeId());
+      if (cacheInfo == null) {
+        return null;
+      }
 
-          int totalStock = cacheInfo.getTotalStock();
-          int reservedCount = dbRoom.getReservedCount();
-          int availableStock = totalStock - reservedCount;
+      int totalStock = cacheInfo.getTotalStock();
+      int reservedCount = dbRoom.getReservedCount();
+      int availableStock = totalStock - reservedCount;
 
-          return new SearchResultDto.RoomTypeResultDto(dbRoom.getRoomTypeId(),
-              dbRoom.getRoomTypeName(), cacheInfo.getRoomCapacity(), availableStock);
-        }).filter(roomDto -> roomDto != null && roomDto.getAvailableStock() > 0)
-        .collect(Collectors.toMap(SearchResultDto.RoomTypeResultDto::getRoomTypeId, dto -> dto));
+      return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
+          cacheInfo.getRoomCapacity(), availableStock);
+    }).filter(roomDto -> roomDto != null && roomDto.getAvailableStock() > 0)
+        .collect(Collectors.toMap(RoomTypeResultDto::getRoomTypeId, dto -> dto));
 
     Map<Integer, List<AvailableRoomInfo>> groupedByHotel = dbRooms.stream()
         .filter(dbRoom -> roomTypeResults.containsKey(dbRoom.getRoomTypeId()))
@@ -90,10 +90,10 @@ public class SearchService {
       Integer hotelId = entry.getKey();
       String hotelName = entry.getValue().get(0).getHotelName();
 
-      List<SearchResultDto.RoomTypeResultDto> roomsForHotel = entry.getValue().stream()
+      List<RoomTypeResultDto> roomsForHotel = entry.getValue().stream()
           .map(dbRoom -> roomTypeResults.get(dbRoom.getRoomTypeId())).distinct()
           .collect(Collectors.toList());
-      return new SearchResultDto.HotelResultDto(hotelId, hotelName, roomsForHotel);
+      return new HotelResultDto(hotelId, hotelName, roomsForHotel);
     }).collect(Collectors.toList());
   }
 }

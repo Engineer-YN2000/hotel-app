@@ -1,28 +1,29 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
+import './ServerError.css';
 
 /**
  * P-900 サーバーエラー画面
  * 予期せぬエラーが発生した場合に表示する。
  */
 const ServerError = ({ onRetry }) => {
+  const { t } = useTranslation();
   return (
     <div className="container">
       <header>
-        <h1>ホテル予約サイト</h1>
+        <h1>{t('app.title')}</h1>
       </header>
       <main>
         <div className="error-page-message">
-          <h2>サーバーエラー</h2>
-          <p>大変申し訳ございません。</p>
-          <p>サーバー側で予期せぬエラーが発生しました。</p>
-          <p>
-            時間をおいて再度お試しいただくか、トップページへお戻りください。
-          </p>
+          <h2>{t('messages.error.serverErrorTitle')}</h2>
+          <p>{t('messages.error.apologyMessage')}</p>
+          <p>{t('messages.error.unexpectedError')}</p>
+          <p>{t('messages.error.retryOrBackToTop')}</p>
 
           <div className="button-container center">
             {/* P-900要件: 「トップへ戻る」ボタン [cite: 189] */}
             <button type="button" className="btn btn-link" onClick={onRetry}>
-              トップへ戻る
+              {t('buttons.backToTop')}
             </button>
           </div>
         </div>

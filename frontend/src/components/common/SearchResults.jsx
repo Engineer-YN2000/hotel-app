@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import './SearchResults.css';
 
 /**
@@ -7,6 +8,7 @@ import './SearchResults.css';
  * 状態 1-D (バリデーション)
  */
 const SearchResults = ({ searchResult, guestCount }) => {
+  const { t } = useTranslation();
   const { hotels } = searchResult;
   // { hotelId: { roomTypeId: count, ... }, ... }
   const [selectedRooms, setSelectedRooms] = useState({});
@@ -63,7 +65,7 @@ const SearchResults = ({ searchResult, guestCount }) => {
 
   return (
     <section className="results-section">
-      <h2>検索結果</h2>
+      <h2>{t('labels.searchResults')}</h2>
       {hotels.map((hotel) => (
         <div key={hotel.hotelId} className="hotel-result-card">
           <div className="hotel-header">
@@ -72,10 +74,10 @@ const SearchResults = ({ searchResult, guestCount }) => {
           <table className="room-type-table">
             <thead>
               <tr>
-                <th>部屋タイプ</th>
-                <th>価格（2泊分/1室）</th>
-                <th>空室状況</th>
-                <th>室数 (C-031) </th>
+                <th>{t('labels.roomType')}</th>
+                <th>{t('labels.priceFor2Nights')}</th>
+                <th>{t('labels.availability')}</th>
+                <th>{t('labels.roomCount')}</th>
               </tr>
             </thead>
             <tbody>
@@ -84,7 +86,7 @@ const SearchResults = ({ searchResult, guestCount }) => {
                   <td>
                     {roomType.roomTypeName}
                     <span className="room-capacity">
-                      (定員: {roomType.capacity}名)
+                      ({t('labels.capacity', { count: roomType.capacity })})
                     </span>
                   </td>
                   <td>
@@ -92,17 +94,23 @@ const SearchResults = ({ searchResult, guestCount }) => {
                       ¥{roomType.price.toLocaleString()}
                     </span>
                     <span className="room-price-per-night">
-                      (参考: ¥{(roomType.price / 2).toLocaleString()}/泊)
+                      (
+                      {t('labels.referencePerNight', {
+                        price: (roomType.price / 2).toLocaleString(),
+                      })}
+                      )
                     </span>
                   </td>
                   <td>
                     {/* 画面仕様書  (ビジネスホテルXYZ) の「残り3部屋！」のロジック */}
                     {roomType.availableStock <= 3 ? (
                       <span className="remaining-rooms">
-                        残り{roomType.availableStock}部屋！
+                        {t('labels.remainingRooms', {
+                          count: roomType.availableStock,
+                        })}
                       </span>
                     ) : (
-                      '空室あり'
+                      t('labels.roomsAvailable')
                     )}
                   </td>
                   <td>
@@ -130,13 +138,17 @@ const SearchResults = ({ searchResult, guestCount }) => {
               {/* 状態 1-D (インラインバリデーションエラー)  */}
               {validation.capacityError && (
                 <span className="capacity-error-message">
-                  宿泊人数（{guestCount}名）に対して、お部屋の定員（合計
-                  {validation.totalCapacity}名）が不足しています。
+                  {t('validation.form.capacityError', {
+                    guestCount,
+                    totalCapacity: validation.totalCapacity,
+                  })}
                 </span>
               )}
               {/* TODO: 合計金額の表示 */}
-              <span className="total-price-display">合計金額: ¥0</span>
-              <span className="total-price-note">（2泊 / 諸税込み）</span>
+              <span className="total-price-display">
+                {t('labels.totalAmount')}: ¥0
+              </span>
+              <span className="total-price-note">{t('labels.priceNote')}</span>
             </div>
             {/* C-032 予約ボタン  */}
             <button
@@ -145,7 +157,7 @@ const SearchResults = ({ searchResult, guestCount }) => {
               onClick={() => handleReservation(hotel.hotelId)}
               disabled={validation.capacityError} // 1-D  エラー時は無効
             >
-              選択した部屋を予約
+              {t('buttons.reserveSelectedRooms')}
             </button>
           </div>
         </div>

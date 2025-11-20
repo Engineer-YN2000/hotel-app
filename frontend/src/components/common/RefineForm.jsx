@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import './RefineForm.css';
 
 /**
@@ -7,13 +8,14 @@ import './RefineForm.css';
  * (現在はモック実装のため機能しない)
  */
 const RefineForm = () => {
+  const { t } = useTranslation();
   return (
     <section className="refinement-group">
-      <h3>絞り込み条件</h3>
+      <h3>{t('labels.refineConditions')}</h3>
 
       {/* 地域詳細 (C-021) - 選択された都道府県内の詳細地域による絞り込み */}
       <div className="form-group">
-        <label>地域詳細（選択された都道府県内）</label>
+        <label>{t('labels.areaDetails')}</label>
         <div className="checkbox-grid">
           {/* 注意: モック実装のため現在は大阪府のエリア例を表示 */}
           <div className="checkbox-group">
@@ -37,7 +39,7 @@ const RefineForm = () => {
 
       {/* 宿泊金額 (C-022) [cite: 52] (外見のみ) */}
       <div className="price-filter-group">
-        <label>宿泊金額（1泊1室あたり）</label>
+        <label>{t('labels.accommodationPrice')}</label>
         <div className="price-filter-controls">
           <input type="number" defaultValue="10000" />
           <span>〜</span>
@@ -54,7 +56,7 @@ const RefineForm = () => {
 
       <div className="button-container center">
         <button type="button" className="btn btn-primary">
-          再検索・絞り込み
+          {t('buttons.refineSearch')}
         </button>
       </div>
     </section>
