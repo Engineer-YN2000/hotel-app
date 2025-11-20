@@ -3,8 +3,9 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 /**
- * React i18next設定ファイル
- * JavaのMessageSourceやSpring BootのThymeleafのmessages.propertiesと同様の機能を提供
+ * React i18next配置ファイル
+ * JavaのMessageSourceやSpring BootのThymeleafテンプレートエンジンの
+ * messages.propertiesファイルと同等の国際化機能を提供
  */
 
 // 日本語リソース（messages.propertiesの代替）

@@ -20,6 +20,8 @@ public class SearchCriteriaDto {
 
   private Integer guestCount;
 
-  // 後方互換性のためareaIdも保持（当面は使用しない）
+  // 後方互換性: 旧システムのareaIdフィールド（移行期間中のみ保持）
+  // TODO: 都道府県ベース検索への完全移行後に削除予定
+  @Deprecated(since = "2025-11", forRemoval = true)
   private Integer areaId;
 }

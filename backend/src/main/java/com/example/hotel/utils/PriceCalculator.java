@@ -7,7 +7,8 @@ import java.time.LocalDate;
  */
 public class PriceCalculator {
 
-  private static final int BASE_PRICE_PER_PERSON = 8000; // 一人当たりの基準価格
+  // 価格設定定数
+  private static final int BASE_PRICE_PER_PERSON = 8000; // 一人当たりの基準価格（円）
   private static final double[] CAPACITY_MULTIPLIERS = {1.0, // 1人: 基準価格
       0.9, // 2人: 10%割引
       0.85, // 3人: 15%割引
@@ -15,7 +16,16 @@ public class PriceCalculator {
       0.75 // 5人以上: 25%割引
   };
 
-  // リクエストスコープの日付キャッシュ（シンプルな実装）
+  // ダイナミックプライシング定数
+  private static final int HOTEL_PRICE_VARIATION_COUNT = 5; // ホテル価格バリエーション数
+  private static final double HOTEL_PRICE_VARIATION_STEP = 0.1; // ホテル価格変動幅（10%刻み）
+  private static final double HOTEL_PRICE_BASE_OFFSET = 0.2; // ホテル価格基準オフセット（±20%範囲）
+  private static final int DEMAND_VARIATION_CYCLE = 20; // 需要変動サイクル（日）
+  private static final double DEMAND_VARIATION_STEP = 0.01; // 需要変動幅（1%刻み）
+  private static final double DEMAND_BASE_FACTOR = 0.9; // 需要基準係数（90%から開始）
+
+  // 注意: ThreadLocalは使用後に必ずクリアが必要（メモリリーク防止）
+  // 本番環境ではSpringのリクエストスコープ使用を推奨
   private static final ThreadLocal<LocalDate> REQUEST_DATE = new ThreadLocal<>();
 
   /**
@@ -64,7 +74,9 @@ public class PriceCalculator {
     }
 
     // ホテルごとの料金体系係数（ホテルIDに基づく一貫した値）
-    double hotelPriceMultiplier = 1.0 + ((hotelId % 5) * 0.1 - 0.2); // 0.8〜1.2の範囲
+    double hotelPriceMultiplier = 1.0
+        + ((hotelId % HOTEL_PRICE_VARIATION_COUNT) * HOTEL_PRICE_VARIATION_STEP
+            - HOTEL_PRICE_BASE_OFFSET);
 
     // capacityに基づく基本価格の計算
     double capacityMultiplier = capacity <= CAPACITY_MULTIPLIERS.length
@@ -76,7 +88,8 @@ public class PriceCalculator {
 
     // その日の需要定数（日付に基づく一貫した値）
     int dayOfYear = date.getDayOfYear();
-    double demandFactor = 0.9 + ((dayOfYear % 20) * 0.01); // 0.9〜1.09の範囲
+    double demandFactor = DEMAND_BASE_FACTOR
+        + ((dayOfYear % DEMAND_VARIATION_CYCLE) * DEMAND_VARIATION_STEP);
 
     // 最終価格の計算
     int finalPrice = (int) (basePrice * demandFactor);

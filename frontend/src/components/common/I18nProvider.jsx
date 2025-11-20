@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import './I18nProvider.css';
 
 /**
  * i18next初期化チェック用コンポーネント
@@ -39,15 +40,7 @@ const I18nProvider = ({ children }) => {
 
   if (!isReady) {
     return (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          fontSize: '18px',
-        }}
-      >
+      <div className="i18n-loading-container">
         {t('messages.loading.initializing', '初期化中...')}
       </div>
     );

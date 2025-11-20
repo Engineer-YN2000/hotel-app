@@ -144,13 +144,6 @@ const SearchResults = ({ searchResult, guestCount }) => {
                   })}
                 </span>
               )}
-              {/* TODO: 合計金額の表示機能は実装中のため、一時的に非表示 */}
-              {/*
-              <span className="total-price-display">
-                {t('labels.totalAmount')}: ¥0
-              </span>
-              <span className="total-price-note">{t('labels.priceNote')}</span>
-              */}
             </div>
             {/* C-032 予約ボタン  */}
             <button

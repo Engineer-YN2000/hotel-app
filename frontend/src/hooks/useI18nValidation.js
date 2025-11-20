@@ -23,15 +23,22 @@ export const useI18nValidation = () => {
     });
   }, []);
 
+  // 翻訳キーのプレフィックス定数（保守性と可読性のため）
+  const TRANSLATION_KEY_PREFIXES = [
+    'validation.',
+    'messages.',
+    'labels.',
+    'buttons.',
+    'app.',
+  ];
+
   // エラーを設定（メッセージキーまたは直接メッセージを受け入れ）
   const setError = useCallback(
     (field, messageKeyOrMessage, params = {}) => {
-      // より堅牢なメッセージキー判定：validation.またはmessages.で始まるものをキーとみなす
-      const isTranslationKey =
-        messageKeyOrMessage.startsWith('validation.') ||
-        messageKeyOrMessage.startsWith('messages.') ||
-        messageKeyOrMessage.startsWith('labels.') ||
-        messageKeyOrMessage.startsWith('buttons.');
+      // 定義されたプレフィックスで翻訳キーか判定
+      const isTranslationKey = TRANSLATION_KEY_PREFIXES.some((prefix) =>
+        messageKeyOrMessage.startsWith(prefix),
+      );
 
       const errorMessage = isTranslationKey
         ? t(messageKeyOrMessage, params) // MessageSource.getMessage(key, args, locale)と同等
@@ -43,9 +50,7 @@ export const useI18nValidation = () => {
       }));
     },
     [t],
-  );
-
-  // 日付バリデーション（MessageSourceベース）
+  ); // 日付バリデーション（MessageSourceベース）
   const validateDates = useCallback(
     (checkIn, checkOut, initialCheckInDate, initialCheckOutDate) => {
       if (!checkIn || !checkOut) {

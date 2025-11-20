@@ -68,13 +68,13 @@ public class TopPageController {
       // ビジネスロジック違反の検証（システムの整合性を脅かす不正な値）
       if (criteria.getPrefectureId() == null || criteria.getPrefectureId() <= 0) {
         log.warn("ビジネスルール違反 - 無効な都道府県ID: {}", criteria.getPrefectureId());
-        return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+        return ResponseEntity.status(422).body(null); // 422レスポンスはボディなnullで返却
       }
 
       if (criteria.getGuestCount() == null || criteria.getGuestCount() <= 0
           || criteria.getGuestCount() > 99) {
         log.warn("ビジネスルール違反 - 無効な宿泊人数: {}", criteria.getGuestCount());
-        return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+        return ResponseEntity.status(422).body(null); // 422レスポンスはボディなnullで返却
       }
 
       log.info("検索リクエスト受信: {}", criteria);
@@ -84,10 +84,15 @@ public class TopPageController {
       return ResponseEntity.ok(result);
 
     }
+    catch (NumberFormatException e) {
+      // 数値変換エラー（不正なパラメータ形式）
+      log.warn("数値変換エラー: {}", e.getMessage());
+      return ResponseEntity.status(422).body(null);
+    }
     catch (IllegalArgumentException e) {
       // ビジネスロジック由来のバリデーションエラー（システムの整合性違反）
       log.warn("ビジネスロジック違反: {}", e.getMessage());
-      return ResponseEntity.status(422).build(); // 422: Unprocessable Entity（意味的エラー）
+      return ResponseEntity.status(422).body(null);
     }
     catch (Exception e) {
       // 予期せぬシステムエラー（DB接続エラー、外部API障害など）
