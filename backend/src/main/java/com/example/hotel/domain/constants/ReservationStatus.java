@@ -22,7 +22,8 @@ public final class ReservationStatus {
   public static final int CANCELLED = 30;
 
   /**
-   * 検索対象となる予約ステータスの配列 空室検索では「予約なし」と「仮予約」を対象とする
+   * 予約済みとしてカウントする予約ステータスのリスト 空室検索では「仮予約」と「確定予約」を予約済みとして除外する （つまり、AVAILABLE のみが検索対象となる空室）
    */
-  public static final int[] SEARCHABLE_STATUSES = {AVAILABLE, TENTATIVE};
+  public static final java.util.List<Integer> RESERVED_STATUSES = java.util.Arrays.asList(TENTATIVE,
+      CONFIRMED);
 }

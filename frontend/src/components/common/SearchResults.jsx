@@ -7,11 +7,26 @@ import './SearchResults.css';
  * C-031 (室数選択) , C-032 (予約ボタン)
  * 状態 1-D (バリデーション)
  */
-const SearchResults = ({ searchResult, guestCount }) => {
+const SearchResults = ({
+  searchResult,
+  guestCount,
+  checkInDate,
+  checkOutDate,
+}) => {
   const { t } = useTranslation();
   const { hotels } = searchResult;
   // { hotelId: { roomTypeId: count, ... }, ... }
   const [selectedRooms, setSelectedRooms] = useState({});
+
+  // 宿泊日数を計算
+  const numberOfNights = useMemo(() => {
+    if (!checkInDate || !checkOutDate) return 2; // デフォルトは2泊
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+    const timeDiff = checkOut.getTime() - checkIn.getTime();
+    const dayDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+    return dayDiff > 0 ? dayDiff : 2; // 異常時は2泊をデフォルトとする
+  }, [checkInDate, checkOutDate]);
 
   // 1-D  のバリデーションロジック
   const validation = useMemo(() => {
@@ -37,8 +52,25 @@ const SearchResults = ({ searchResult, guestCount }) => {
     return {
       totalCapacity: totalGuestsInSelectedRooms,
       capacityError: capacityError,
+      hasSelectedRooms: totalGuestsInSelectedRooms > 0,
     };
   }, [selectedRooms, guestCount, hotels]);
+
+  // ホテルごとの予約ボタン無効化条件
+  const getReservationButtonState = useMemo(() => {
+    const hotelStates = {};
+    hotels.forEach((hotel) => {
+      const hotelRooms = selectedRooms[hotel.hotelId] || {};
+      const hasSelectedRooms = Object.values(hotelRooms).some(
+        (count) => count > 0,
+      );
+      hotelStates[hotel.hotelId] = {
+        disabled: validation.capacityError || !hasSelectedRooms,
+        hasSelectedRooms,
+      };
+    });
+    return hotelStates;
+  }, [hotels, selectedRooms, validation.capacityError]);
 
   const handleRoomCountChange = (hotelId, roomTypeId, count) => {
     // 数値を0以上に補正
@@ -54,18 +86,45 @@ const SearchResults = ({ searchResult, guestCount }) => {
   };
 
   const handleReservation = (hotelId) => {
-    // 1-D  エラーがあれば何もしない
-    if (validation.capacityError) return;
+    // バリデーションエラーチェック
+    if (validation.capacityError) {
+      console.warn('予約処理中止: 定員エラーが発生しています', {
+        hotelId,
+        guestCount,
+        totalCapacity: validation.totalCapacity,
+        capacityError: validation.capacityError,
+      });
+      return;
+    }
 
     const roomsToReserve = selectedRooms[hotelId];
+
+    // 部屋が選択されているかチェック
+    const hasSelectedRooms =
+      roomsToReserve &&
+      Object.values(roomsToReserve).some((count) => count > 0);
+
+    if (!hasSelectedRooms) {
+      console.warn('予約処理中止: 部屋が選択されていません', {
+        hotelId,
+        selectedRooms: roomsToReserve,
+      });
+      return;
+    }
+
     console.log(`ホテルID ${hotelId} の予約に進みます (次のステップ)`);
     console.log('選択された室数:', roomsToReserve);
+    console.log('バリデーション状態:', {
+      guestCount,
+      totalCapacity: validation.totalCapacity,
+      capacityError: validation.capacityError,
+    });
     // TODO: P-020 [cite: 83] への遷移 (flowchart_top_to_reservation.dot  の `validation_stock`  実行)
   };
 
   return (
     <section className="results-section">
-      <h2>{t('labels.searchResults')}</h2>
+      <h2>{t('labels.searchResultsWithCount', { count: hotels.length })}</h2>
       {hotels.map((hotel) => (
         <div key={hotel.hotelId} className="hotel-result-card">
           <div className="hotel-header">
@@ -75,7 +134,9 @@ const SearchResults = ({ searchResult, guestCount }) => {
             <thead>
               <tr>
                 <th>{t('labels.roomType')}</th>
-                <th>{t('labels.priceFor2Nights')}</th>
+                <th>
+                  {t('labels.priceForNights', { nights: numberOfNights })}
+                </th>
                 <th>{t('labels.availability')}</th>
                 <th>{t('labels.roomCount')}</th>
               </tr>
@@ -96,7 +157,9 @@ const SearchResults = ({ searchResult, guestCount }) => {
                     <span className="room-price-per-night">
                       (
                       {t('labels.referencePerNight', {
-                        price: (roomType.price / 2).toLocaleString(),
+                        price: Math.round(
+                          roomType.price / numberOfNights,
+                        ).toLocaleString(),
                       })}
                       )
                     </span>
@@ -148,9 +211,9 @@ const SearchResults = ({ searchResult, guestCount }) => {
             {/* C-032 予約ボタン  */}
             <button
               type="button"
-              className={`btn btn-primary ${validation.capacityError ? 'btn-disabled' : ''}`}
+              className={`btn btn-primary ${getReservationButtonState[hotel.hotelId]?.disabled ? 'btn-disabled' : ''}`}
               onClick={() => handleReservation(hotel.hotelId)}
-              disabled={validation.capacityError} // 1-D  エラー時は無効
+              disabled={getReservationButtonState[hotel.hotelId]?.disabled} // 1-D  エラー時または部屋未選択時は無効
             >
               {t('buttons.reserveSelectedRooms')}
             </button>

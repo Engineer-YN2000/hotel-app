@@ -24,37 +24,15 @@ public class PriceCalculator {
   private static final double DEMAND_VARIATION_STEP = 0.01; // 需要変動幅（1%刻み）
   private static final double DEMAND_BASE_FACTOR = 0.9; // 需要基準係数（90%から開始）
 
-  // 注意: ThreadLocalは使用後に必ずクリアが必要（メモリリーク防止）
-  // 本番環境ではSpringのリクエストスコープ使用を推奨
-  private static final ThreadLocal<LocalDate> REQUEST_DATE = new ThreadLocal<>();
-
   /**
-   * リクエストスコープの日付を設定します
-   */
-  public static void setRequestDate(LocalDate date) {
-    REQUEST_DATE.set(date);
-  }
-
-  /**
-   * リクエストスコープの日付をクリアします
-   */
-  public static void clearRequestDate() {
-    REQUEST_DATE.remove();
-  }
-
-  /**
-   * 部屋の定員に基づいて価格を計算します（後方互換性のため） リクエストスコープの日付が設定されている場合はそれを使用、されていない場合は現在日を使用
+   * 部屋の定員に基づいて価格を計算します（後方互換性のため） デフォルトでhotelId=1、現在日を使用
    *
    * @param capacity
    *          部屋の定員
    * @return 計算された価格（部屋全体）
    */
   public static Integer calculatePrice(Integer capacity) {
-    LocalDate date = REQUEST_DATE.get();
-    if (date == null) {
-      date = LocalDate.now();
-    }
-    return calculatePrice(capacity, 1L, date);
+    return calculatePrice(capacity, 1, LocalDate.now());
   }
 
   /**
@@ -68,7 +46,7 @@ public class PriceCalculator {
    *          宿泊予定日（需要定数の決定に使用）
    * @return 計算された価格（部屋全体）
    */
-  public static Integer calculatePrice(Integer capacity, Long hotelId, LocalDate date) {
+  public static Integer calculatePrice(Integer capacity, Integer hotelId, LocalDate date) {
     if (capacity == null || capacity <= 0) {
       return BASE_PRICE_PER_PERSON;
     }

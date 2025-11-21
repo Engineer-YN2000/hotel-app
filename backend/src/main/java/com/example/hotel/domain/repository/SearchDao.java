@@ -25,11 +25,13 @@ public interface SearchDao {
    *          チェックイン日 (reservations.check_in_date)
    * @param checkOutDate
    *          チェックアウト日 (reservations.check_out_date)
+   * @param reservedStatuses
+   *          予約済みとしてカウントする予約ステータスのリスト
    * @param options
    *          SelectOptions（Doma2が自動使用）
    * @return List<AvailableRoomInfo>
    */
   @Select
   List<AvailableRoomInfo> searchAvailableRooms(Integer prefectureId, LocalDate checkInDate,
-      LocalDate checkOutDate, SelectOptions options);
+      LocalDate checkOutDate, java.util.List<Integer> reservedStatuses, SelectOptions options);
 }

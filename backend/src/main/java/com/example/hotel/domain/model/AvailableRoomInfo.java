@@ -42,4 +42,10 @@ public class AvailableRoomInfo {
    */
   @Column(name = "reserved_count")
   private Integer reservedCount;
+
+  /**
+   * 詳細地域ID (area_details.area_id)
+   */
+  @Column(name = "area_id")
+  private Integer areaId;
 }

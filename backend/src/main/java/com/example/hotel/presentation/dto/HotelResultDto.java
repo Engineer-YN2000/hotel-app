@@ -13,5 +13,6 @@ import lombok.AllArgsConstructor;
 public class HotelResultDto {
   private Integer hotelId;
   private String hotelName;
+  private Integer areaId; // 詳細地域ID（絞り込み用）
   private java.util.List<RoomTypeResultDto> roomTypes;
 }

@@ -59,3 +59,12 @@ Thumbs.db
 
 # ローカル開発用のアプリ設定（機密を含む可能性があるため除外）
 /backend/src/main/resources/application.properties
+
+# ---------------------------------
+# デバッグ用ファイル (Debug Files)
+# ---------------------------------
+# デバッグ用SQLスクリプト
+/backend/src/main/resources/debug_queries.sql
+
+# デバッグ用パッケージ全体
+/backend/src/main/java/com/example/hotel/debug/

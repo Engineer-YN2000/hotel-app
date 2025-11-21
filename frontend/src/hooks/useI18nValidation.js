@@ -1,6 +1,15 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useCallback } from 'react';
 
+// 翻訳キーのプレフィックス定数（コンポーネント外で定義して依存関係を明確化）
+const TRANSLATION_KEY_PREFIXES = [
+  'validation.',
+  'messages.',
+  'labels.',
+  'buttons.',
+  'app.',
+];
+
 /**
  * React i18nextベースのバリデーションフック
  * JavaのMessageSourceと同様の機能をReactで提供
@@ -22,15 +31,6 @@ export const useI18nValidation = () => {
       return newErrors;
     });
   }, []);
-
-  // 翻訳キーのプレフィックス定数（保守性と可読性のため）
-  const TRANSLATION_KEY_PREFIXES = [
-    'validation.',
-    'messages.',
-    'labels.',
-    'buttons.',
-    'app.',
-  ];
 
   // エラーを設定（メッセージキーまたは直接メッセージを受け入れ）
   const setError = useCallback(
@@ -117,33 +117,43 @@ export const useI18nValidation = () => {
   const handleApiError = useCallback(
     (error, field = 'api') => {
       let messageKey;
+      let errorType = 'client'; // デフォルトはクライアントエラー
 
       // HTTPステータスコードに基づく適切なエラー分類
       if (error.message?.includes('Network') || error.name === 'NetworkError') {
         messageKey = 'validation.api.networkError';
+        errorType = 'server'; // ネットワークエラーはサーバーエラー扱い
       } else if (error.status === 400 || error.message?.includes('400')) {
         // 構文エラー: リクエスト形式の問題
         messageKey = 'validation.api.invalidRequest';
+        errorType = 'client';
       } else if (error.status === 404 || error.message?.includes('404')) {
         // リソース未発見: 存在しないエンドポイント
         messageKey = 'validation.api.notFound';
+        errorType = 'client';
       } else if (error.status === 405 || error.message?.includes('405')) {
         // メソッド未許可: 不正なHTTPメソッド
         messageKey = 'validation.api.methodNotAllowed';
+        errorType = 'client';
       } else if (error.status === 422 || error.message?.includes('422')) {
         // ビジネスルール違反: システムの整合性に反する値
         messageKey = 'validation.api.businessRuleViolation';
+        errorType = 'client';
       } else if (error.status === 500 || error.message?.includes('500')) {
         // サーバーエラー: システム障害を示す（詳細は隠す）
         messageKey = 'validation.api.serverError';
+        errorType = 'server';
       } else {
         // その他の予期しないエラー
         messageKey = 'validation.api.searchFailed';
+        errorType = 'server'; // 不明なエラーは安全のためサーバーエラー扱い
       }
 
       const message = t(messageKey);
       setError(field, message); // 翻訳されたメッセージを使用
-      return message;
+
+      // エラータイプも返して呼び出し側で判定できるようにする
+      return { message, errorType };
     },
     [t, setError],
   );

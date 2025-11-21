@@ -35,7 +35,7 @@ public class RoomTypeResultDto {
    * ホテルIDと日付を考慮したダイナミックプライシング対応コンストラクタ
    */
   public RoomTypeResultDto(Integer roomTypeId, String roomTypeName, Integer capacity,
-      Integer availableStock, Long hotelId, LocalDate date) {
+      Integer availableStock, Integer hotelId, LocalDate date) {
     this.roomTypeId = roomTypeId;
     this.roomTypeName = roomTypeName;
     this.capacity = capacity;

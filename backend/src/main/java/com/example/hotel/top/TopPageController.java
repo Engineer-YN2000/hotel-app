@@ -2,6 +2,8 @@ package com.example.hotel.top;
 
 import com.example.hotel.domain.service.CacheService;
 import com.example.hotel.domain.service.SearchService;
+import com.example.hotel.domain.repository.AreaDetailDao;
+import com.example.hotel.domain.model.AreaDetail;
 import com.example.hotel.presentation.dto.SearchCriteriaDto;
 import com.example.hotel.presentation.dto.SearchResultDto;
 import lombok.extern.slf4j.Slf4j;
@@ -25,10 +27,13 @@ public class TopPageController {
 
   private final CacheService cacheService;
   private final SearchService searchService;
+  private final AreaDetailDao areaDetailDao;
 
-  public TopPageController(CacheService cacheService, SearchService searchService) {
+  public TopPageController(CacheService cacheService, SearchService searchService,
+      AreaDetailDao areaDetailDao) {
     this.cacheService = cacheService;
     this.searchService = searchService;
+    this.areaDetailDao = areaDetailDao;
   }
 
   /**
@@ -66,15 +71,52 @@ public class TopPageController {
   public ResponseEntity<SearchResultDto> search(SearchCriteriaDto criteria) {
     try {
       // ビジネスロジック違反の検証（システムの整合性を脅かす不正な値）
+
+      // 日付パラメータの検証
+      if (criteria.getCheckInDate() == null) {
+        log.warn("ビジネスルール違反 - チェックイン日が未指定");
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("チェックイン日を入力してください");
+        return ResponseEntity.status(422).body(errorResult);
+      }
+
+      if (criteria.getCheckOutDate() == null) {
+        log.warn("ビジネスルール違反 - チェックアウト日が未指定");
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("チェックアウト日を入力してください");
+        return ResponseEntity.status(422).body(errorResult);
+      }
+
+      LocalDate today = LocalDate.now();
+      if (criteria.getCheckInDate().isBefore(today)) {
+        log.warn("ビジネスルール違反 - 過去のチェックイン日: {}", criteria.getCheckInDate());
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("チェックイン日は今日以降の日付を入力してください");
+        return ResponseEntity.status(422).body(errorResult);
+      }
+
+      if (criteria.getCheckOutDate().isBefore(criteria.getCheckInDate())
+          || criteria.getCheckOutDate().isEqual(criteria.getCheckInDate())) {
+        log.warn("ビジネスルール違反 - チェックアウト日がチェックイン日以前または同日: チェックイン={}, チェックアウト={}",
+            criteria.getCheckInDate(), criteria.getCheckOutDate());
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("チェックアウト日はチェックイン日の翌日以降を入力してください");
+        return ResponseEntity.status(422).body(errorResult);
+      }
+
       if (criteria.getPrefectureId() == null || criteria.getPrefectureId() <= 0) {
         log.warn("ビジネスルール違反 - 無効な都道府県ID: {}", criteria.getPrefectureId());
-        return ResponseEntity.status(422).body(null); // 422レスポンスはボディなnullで返却
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("無効な都道府県が指定されました");
+        return ResponseEntity.status(422).body(errorResult);
       }
 
       if (criteria.getGuestCount() == null || criteria.getGuestCount() <= 0
           || criteria.getGuestCount() > 99) {
         log.warn("ビジネスルール違反 - 無効な宿泊人数: {}", criteria.getGuestCount());
-        return ResponseEntity.status(422).body(null); // 422レスポンスはボディなnullで返却
+        SearchResultDto errorResult = new SearchResultDto();
+        errorResult.setErrorMessage("宿泊人数は1〜99人の範囲で入力してください");
+        return ResponseEntity.status(422).body(errorResult);
       }
 
       log.info("検索リクエスト受信: {}", criteria);
@@ -87,17 +129,47 @@ public class TopPageController {
     catch (NumberFormatException e) {
       // 数値変換エラー（不正なパラメータ形式）
       log.warn("数値変換エラー: {}", e.getMessage());
-      return ResponseEntity.status(422).body(null);
+      SearchResultDto errorResult = new SearchResultDto();
+      errorResult.setErrorMessage("入力形式に誤りがあります");
+      return ResponseEntity.status(422).body(errorResult);
     }
     catch (IllegalArgumentException e) {
       // ビジネスロジック由来のバリデーションエラー（システムの整合性違反）
       log.warn("ビジネスロジック違反: {}", e.getMessage());
-      return ResponseEntity.status(422).body(null);
+      SearchResultDto errorResult = new SearchResultDto();
+      errorResult.setErrorMessage(e.getMessage());
+      return ResponseEntity.status(422).body(errorResult);
     }
     catch (Exception e) {
       // 予期せぬシステムエラー（DB接続エラー、外部API障害など）
       log.error("空室検索中に予期せぬエラーが発生しました", e);
       return ResponseEntity.internalServerError().build(); // 500: サーバーエラー
+    }
+  }
+
+  /**
+   * 指定された都道府県に紐づく詳細地域を取得するAPI 絞り込みフォームで使用される
+   *
+   * @param prefectureId
+   *          都道府県ID
+   * @return 詳細地域のリスト
+   */
+  @GetMapping("/api/area-details")
+  public ResponseEntity<List<AreaDetail>> getAreaDetails(Integer prefectureId) {
+    try {
+      if (prefectureId == null || prefectureId <= 0) {
+        log.warn("無効な都道府県ID: {}", prefectureId);
+        return ResponseEntity.badRequest().build();
+      }
+
+      List<AreaDetail> areaDetails = areaDetailDao.selectByPrefectureId(prefectureId);
+      log.info("詳細地域 取得結果: 都道府県ID={}, 件数={}", prefectureId, areaDetails.size());
+
+      return ResponseEntity.ok(areaDetails);
+    }
+    catch (Exception e) {
+      log.error("詳細地域取得中にエラーが発生しました", e);
+      return ResponseEntity.internalServerError().build();
     }
   }
 }

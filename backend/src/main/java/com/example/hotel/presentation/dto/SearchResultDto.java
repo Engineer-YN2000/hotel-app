@@ -17,11 +17,12 @@ public class SearchResultDto {
 
   private List<HotelResultDto> hotels;
   private SearchCriteriaDto criteria;
+  private String errorMessage; // エラー時のメッセージ（正常時はnull）
 
   /**
    * 空結果（ホテル一覧なし）を生成するファクトリ。
    */
   public static SearchResultDto createEmptyResult() {
-    return new SearchResultDto(Collections.emptyList(), null);
+    return new SearchResultDto(Collections.emptyList(), null, null);
   }
 }
