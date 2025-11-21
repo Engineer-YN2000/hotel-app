@@ -2,6 +2,14 @@
 -- 指定された条件で、ホテル情報、部屋タイプ情報、および
 -- 該当期間中の「予約済み室数」を取得する。
 -- パフォーマンス最適化: CTEの代わりに単一クエリでJOINを使用
+--
+-- 【重要】ダブルブッキング防止について
+-- このクエリは検索時点での在庫状況表示用です。
+-- 実際の予約処理時には、以下の対策が必要です：
+-- 1. 予約ボタン押下時にリアルタイムで在庫再確認
+-- 2. 悲観的ロック（SELECT FOR UPDATE）による排他制御
+-- 3. 楽観的ロック（バージョン管理）による競合検出
+-- 4. トランザクション内での在庫チェック＋予約登録の原子性保証
 
 SELECT
     h.hotel_id,
@@ -16,8 +24,6 @@ JOIN
     area_details ad ON h.area_id = ad.area_id
 JOIN
     room_types rt ON h.hotel_id = rt.hotel_id
-JOIN
-    rooms r ON rt.room_type_id = r.room_type_id
 LEFT JOIN
     reservation_details rd ON rt.room_type_id = rd.room_type_id
 LEFT JOIN

@@ -25,6 +25,18 @@ import java.util.Map;
 @Slf4j
 public class TopPageController {
 
+  // 推奨日付設定定数
+  private static final int RECOMMENDED_CHECK_IN_DAYS_FROM_TODAY = 1;
+  private static final int RECOMMENDED_CHECK_OUT_DAYS_FROM_TODAY = 2;
+
+  // バリデーション定数
+  private static final int MIN_GUEST_COUNT = 1;
+  private static final int MAX_GUEST_COUNT = 99;
+  private static final int MIN_PREFECTURE_ID = 1;
+
+  // HTTPステータスコード定数
+  private static final int HTTP_STATUS_UNPROCESSABLE_ENTITY = 422;
+
   private final CacheService cacheService;
   private final SearchService searchService;
   private final AreaDetailDao areaDetailDao;
@@ -54,8 +66,9 @@ public class TopPageController {
         }).toList();
 
     Map<String, Object> data = Map.of("roomTypesCacheData", cacheService.getStockCache(),
-        "prefectures", prefectureList, "recommendedCheckin", LocalDate.now().plusDays(1),
-        "recommendedCheckout", LocalDate.now().plusDays(2));
+        "prefectures", prefectureList, "recommendedCheckin",
+        LocalDate.now().plusDays(RECOMMENDED_CHECK_IN_DAYS_FROM_TODAY), "recommendedCheckout",
+        LocalDate.now().plusDays(RECOMMENDED_CHECK_OUT_DAYS_FROM_TODAY));
     return ResponseEntity.ok(data);
   }
 
@@ -77,14 +90,14 @@ public class TopPageController {
         log.warn("ビジネスルール違反 - チェックイン日が未指定");
         SearchResultDto errorResult = new SearchResultDto();
         errorResult.setErrorMessage("チェックイン日を入力してください");
-        return ResponseEntity.status(422).body(errorResult);
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
       if (criteria.getCheckOutDate() == null) {
         log.warn("ビジネスルール違反 - チェックアウト日が未指定");
         SearchResultDto errorResult = new SearchResultDto();
         errorResult.setErrorMessage("チェックアウト日を入力してください");
-        return ResponseEntity.status(422).body(errorResult);
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
       LocalDate today = LocalDate.now();
@@ -92,7 +105,7 @@ public class TopPageController {
         log.warn("ビジネスルール違反 - 過去のチェックイン日: {}", criteria.getCheckInDate());
         SearchResultDto errorResult = new SearchResultDto();
         errorResult.setErrorMessage("チェックイン日は今日以降の日付を入力してください");
-        return ResponseEntity.status(422).body(errorResult);
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
       if (criteria.getCheckOutDate().isBefore(criteria.getCheckInDate())
@@ -101,22 +114,23 @@ public class TopPageController {
             criteria.getCheckInDate(), criteria.getCheckOutDate());
         SearchResultDto errorResult = new SearchResultDto();
         errorResult.setErrorMessage("チェックアウト日はチェックイン日の翌日以降を入力してください");
-        return ResponseEntity.status(422).body(errorResult);
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
-      if (criteria.getPrefectureId() == null || criteria.getPrefectureId() <= 0) {
+      if (criteria.getPrefectureId() == null || criteria.getPrefectureId() < MIN_PREFECTURE_ID) {
         log.warn("ビジネスルール違反 - 無効な都道府県ID: {}", criteria.getPrefectureId());
         SearchResultDto errorResult = new SearchResultDto();
         errorResult.setErrorMessage("無効な都道府県が指定されました");
-        return ResponseEntity.status(422).body(errorResult);
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
-      if (criteria.getGuestCount() == null || criteria.getGuestCount() <= 0
-          || criteria.getGuestCount() > 99) {
+      if (criteria.getGuestCount() == null || criteria.getGuestCount() < MIN_GUEST_COUNT
+          || criteria.getGuestCount() > MAX_GUEST_COUNT) {
         log.warn("ビジネスルール違反 - 無効な宿泊人数: {}", criteria.getGuestCount());
         SearchResultDto errorResult = new SearchResultDto();
-        errorResult.setErrorMessage("宿泊人数は1〜99人の範囲で入力してください");
-        return ResponseEntity.status(422).body(errorResult);
+        errorResult
+            .setErrorMessage("宿泊人数は" + MIN_GUEST_COUNT + "～" + MAX_GUEST_COUNT + "人の範囲で入力してください");
+        return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
       }
 
       log.info("検索リクエスト受信: {}", criteria);
@@ -131,14 +145,14 @@ public class TopPageController {
       log.warn("数値変換エラー: {}", e.getMessage());
       SearchResultDto errorResult = new SearchResultDto();
       errorResult.setErrorMessage("入力形式に誤りがあります");
-      return ResponseEntity.status(422).body(errorResult);
+      return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
     }
     catch (IllegalArgumentException e) {
       // ビジネスロジック由来のバリデーションエラー（システムの整合性違反）
       log.warn("ビジネスロジック違反: {}", e.getMessage());
       SearchResultDto errorResult = new SearchResultDto();
       errorResult.setErrorMessage(e.getMessage());
-      return ResponseEntity.status(422).body(errorResult);
+      return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(errorResult);
     }
     catch (Exception e) {
       // 予期せぬシステムエラー（DB接続エラー、外部API障害など）
@@ -157,7 +171,7 @@ public class TopPageController {
   @GetMapping("/api/area-details")
   public ResponseEntity<List<AreaDetail>> getAreaDetails(Integer prefectureId) {
     try {
-      if (prefectureId == null || prefectureId <= 0) {
+      if (prefectureId == null || prefectureId < MIN_PREFECTURE_ID) {
         log.warn("無効な都道府県ID: {}", prefectureId);
         return ResponseEntity.badRequest().build();
       }

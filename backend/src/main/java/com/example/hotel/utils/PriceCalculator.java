@@ -7,6 +7,13 @@ import java.time.LocalDate;
  */
 public class PriceCalculator {
 
+  /**
+   * ユーティリティクラスのため、インスタンス化を防ぐprivateコンストラクタ
+   */
+  private PriceCalculator() {
+    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  }
+
   // 価格設定定数
   private static final int BASE_PRICE_PER_PERSON = 8000; // 一人当たりの基準価格（円）
   private static final double[] CAPACITY_MULTIPLIERS = {1.0, // 1人: 基準価格

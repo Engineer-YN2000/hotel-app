@@ -19,6 +19,12 @@ import java.util.Map;
 @Controller
 public class CustomErrorController implements ErrorController {
 
+  // HTTPステータスコード定数
+  private static final int HTTP_STATUS_NOT_FOUND = 404;
+  private static final int HTTP_STATUS_METHOD_NOT_ALLOWED = 405;
+  private static final int HTTP_STATUS_UNPROCESSABLE_ENTITY = 422;
+  private static final int HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
+
   @RequestMapping("/error")
   @ResponseBody
   public ResponseEntity<Map<String, Object>> handleError(HttpServletRequest request) {
@@ -26,31 +32,39 @@ public class CustomErrorController implements ErrorController {
     Object uri = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
 
     if (status != null) {
-      int statusCode = Integer.parseInt(status.toString());
+      int statusCode;
+      try {
+        statusCode = Integer.parseInt(status.toString());
+      }
+      catch (NumberFormatException e) {
+        log.warn("無効なステータスコード形式: {}", status);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("errorCode",
+            "INVALID_STATUS_CODE", "status", HTTP_STATUS_INTERNAL_SERVER_ERROR));
+      }
 
       // APIエンドポイントへのリクエストの場合、JSON形式でエラーレスポンスを返す
       String requestURI = uri != null ? uri.toString() : "unknown";
 
       switch (statusCode) {
-        case 404 :
+        case HTTP_STATUS_NOT_FOUND :
           log.warn("リソースが見つかりません: {}", requestURI);
           return ResponseEntity.status(HttpStatus.NOT_FOUND)
-              .body(Map.of("errorCode", "RESOURCE_NOT_FOUND", "status", 404));
+              .body(Map.of("errorCode", "RESOURCE_NOT_FOUND", "status", HTTP_STATUS_NOT_FOUND));
 
-        case 405 :
+        case HTTP_STATUS_METHOD_NOT_ALLOWED :
           log.warn("許可されていないHTTPメソッド: {}", requestURI);
-          return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-              .body(Map.of("errorCode", "METHOD_NOT_ALLOWED", "status", 405));
+          return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
+              Map.of("errorCode", "METHOD_NOT_ALLOWED", "status", HTTP_STATUS_METHOD_NOT_ALLOWED));
 
-        case 422 :
+        case HTTP_STATUS_UNPROCESSABLE_ENTITY :
           log.warn("ビジネスルール違反: {}", requestURI);
-          return ResponseEntity.status(422)
-              .body(Map.of("errorCode", "BUSINESS_RULE_VIOLATION", "status", 422));
+          return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(Map.of("errorCode",
+              "BUSINESS_RULE_VIOLATION", "status", HTTP_STATUS_UNPROCESSABLE_ENTITY));
 
-        case 500 :
+        case HTTP_STATUS_INTERNAL_SERVER_ERROR :
           log.error("内部サーバーエラー: {}", requestURI);
-          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-              .body(Map.of("errorCode", "INTERNAL_SERVER_ERROR", "status", 500));
+          return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("errorCode",
+              "INTERNAL_SERVER_ERROR", "status", HTTP_STATUS_INTERNAL_SERVER_ERROR));
 
         default :
           log.warn("予期しないHTTPエラー: {} for {}", statusCode, requestURI);
@@ -62,6 +76,6 @@ public class CustomErrorController implements ErrorController {
     // ステータスコードが取得できない場合の汎用エラー
     log.error("ステータスコード不明のエラーが発生しました");
     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-        .body(Map.of("errorCode", "UNKNOWN_ERROR", "status", 500));
+        .body(Map.of("errorCode", "UNKNOWN_ERROR", "status", HTTP_STATUS_INTERNAL_SERVER_ERROR));
   }
 }

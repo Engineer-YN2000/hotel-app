@@ -69,7 +69,7 @@ const RefineForm = ({ selectedPrefectureId, onRefineSearch }) => {
       <div className="form-group">
         <label>{t('labels.areaDetails')}</label>
         {isLoading ? (
-          <div className="loading-message">読み込み中...</div>
+          <div className="loading-message">{t('messages.loading')}</div>
         ) : areaDetails.length > 0 ? (
           <div className="checkbox-grid">
             {areaDetails.map((area) => (
@@ -88,7 +88,7 @@ const RefineForm = ({ selectedPrefectureId, onRefineSearch }) => {
           </div>
         ) : (
           <div className="no-areas-message">
-            選択された都道府県に詳細地域が登録されていません
+            {t('messages.noAreasAvailable')}
           </div>
         )}
       </div>

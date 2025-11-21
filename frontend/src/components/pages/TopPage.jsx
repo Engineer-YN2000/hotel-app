@@ -79,7 +79,6 @@ const TopPage = () => {
         const response = await fetch('/api/initial-data');
         if (response.ok) {
           const data = await response.json();
-          console.log('初期データ取得:', data);
 
           // 都道府県リストを設定
           if (data.prefectures) {
@@ -146,7 +145,6 @@ const TopPage = () => {
 
   // 絞り込み検索処理
   const handleRefineSearch = (selectedAreaIds) => {
-    console.log('絞り込み検索:', selectedAreaIds);
     // 元の検索結果を選択された地域でフィルタリング
     if (originalSearchResult && originalSearchResult.hotels) {
       const filteredHotels = originalSearchResult.hotels.filter(
@@ -207,33 +205,23 @@ const TopPage = () => {
       guestCount: e.target.elements['guests'].value,
     };
 
-    setGuestCount(parseInt(criteria.guestCount, 10)); // 1-D  のために保持
-    setSelectedPrefectureId(parseInt(criteria.prefectureId, 10)); // 絞り込み用
+    setGuestCount(Number(criteria.guestCount) || 1); // 1-D  のために保持（最小値1を保証）
+    setSelectedPrefectureId(Number(criteria.prefectureId) || null); // 絞り込み用（無効な値はnullに）
 
     // URLSearchParams を使ってクエリ文字列を構築
     const params = new URLSearchParams(criteria);
 
     try {
-      console.log('検索リクエスト送信:', `/api/search?${params.toString()}`);
       const response = await fetch(`/api/search?${params.toString()}`);
-
-      console.log('レスポンス受信:', response.status, response.ok);
       if (!response.ok) {
         // 500エラー (P-900) [cite: 129, 130]
         throw new Error(`サーバーエラー: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('レスポンスデータ:', result);
-
-      // デバッグ用: APIレスポンスの詳細をチェック
-      console.log('result:', result);
-      console.log('result.hotels:', result?.hotels);
-      console.log('result.hotels?.length:', result?.hotels?.length);
 
       if (result && result.hotels && result.hotels.length > 0) {
         // 状態 1-B (検索結果あり)
-        console.log('検索結果あり - ホテル数:', result.hotels.length);
         setSearchResult(result);
         setOriginalSearchResult(result); // 元の検索結果を保存
         setShowResults(true);
@@ -241,7 +229,6 @@ const TopPage = () => {
         setShowNoResults(false);
       } else {
         // 状態 1-C (検索結果なし)
-        console.log('検索結果なし - result:', result);
         setSearchResult(null);
         setOriginalSearchResult(null);
         setShowResults(false);
@@ -261,9 +248,6 @@ const TopPage = () => {
       } else {
         // 4xxクライアントエラー：現在のフォームでエラーメッセージを表示
         // handleApiErrorで既にエラーメッセージが設定されている
-        console.log(
-          '4xxクライアントエラーです。フォーム上でエラー表示します。',
-        );
       }
     } finally {
       setIsLoading(false);

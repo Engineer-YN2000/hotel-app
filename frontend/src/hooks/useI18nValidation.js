@@ -117,7 +117,7 @@ export const useI18nValidation = () => {
   const handleApiError = useCallback(
     (error, field = 'api') => {
       let messageKey;
-      let errorType = 'client'; // デフォルトはクライアントエラー
+      let errorType;
 
       // HTTPステータスコードに基づく適切なエラー分類
       if (error.message?.includes('Network') || error.name === 'NetworkError') {
@@ -144,9 +144,9 @@ export const useI18nValidation = () => {
         messageKey = 'validation.api.serverError';
         errorType = 'server';
       } else {
-        // その他の予期しないエラー
+        // その他の予期しないエラー（不明なエラーは安全のためサーバーエラー扱い）
         messageKey = 'validation.api.searchFailed';
-        errorType = 'server'; // 不明なエラーは安全のためサーバーエラー扱い
+        errorType = 'server';
       }
 
       const message = t(messageKey);

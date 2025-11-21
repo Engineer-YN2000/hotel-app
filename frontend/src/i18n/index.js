@@ -104,7 +104,9 @@ const resources = {
           title: 'ご指定の日程・地域では空室がございませんでした。',
           subtitle: '条件を変更して再検索してください。',
         },
-        loading: {
+        loading: '読み込み中...',
+        noAreasAvailable: '選択された都道府県に詳細地域が登録されていません',
+        loadingDetailed: {
           initializing: '初期化中...',
           searching: '検索中...',
           loading: '読み込み中...',

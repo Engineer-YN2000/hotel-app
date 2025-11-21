@@ -66,7 +66,8 @@ public class SearchService {
           room.getAreaId()));
     }
 
-    List<HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms, stockCache);
+    List<HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms, stockCache,
+        criteria.getCheckInDate());
 
     if (hotelResults.isEmpty()) {
       log.info("検索結果が0件です。DBから{}件取得したが、在庫計算後に0件になりました。", dbRooms.size());
@@ -81,7 +82,7 @@ public class SearchService {
    * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。
    */
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
-      Map<Integer, RoomStockInfo> stockCache) {
+      Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate) {
 
     Map<Integer, RoomTypeResultDto> roomTypeResults = dbRooms.stream()
         .filter(dbRoom -> stockCache.containsKey(dbRoom.getRoomTypeId())).map(dbRoom -> {
@@ -91,9 +92,15 @@ public class SearchService {
           int availableStock = totalStock - reservedCount;
 
           return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
-              cacheInfo.getRoomCapacity(), availableStock, dbRoom.getHotelId(),
-              java.time.LocalDate.now());
+              cacheInfo.getRoomCapacity(), availableStock, dbRoom.getHotelId(), checkInDate);
         }).filter(roomDto -> roomDto.getAvailableStock() > 0)
+        /*
+         * 【重要】room_type_idをキーとするMapへの変換について 一見すると異なるホテルに同じroom_type_idが存在する場合に
+         * Map変換時に重複エラーが発生する可能性があるように見えるが、 データベース設計上この問題は回避されている： 1. room_types.room_type_id は
+         * PRIMARY KEY（自動採番） → システム全体で一意の値が保証される 2. room_types.hotel_id は FOREIGN KEY →
+         * 各部屋タイプは特定のホテルに紐づく 3. 同一検索条件（都道府県）内では、room_type_idの重複は データベース制約上発生しない
+         * したがって、Collectors.toMap()での重複キー例外は データ整合性が保たれている限り発生しない。
+         */
         .collect(Collectors.toMap(RoomTypeResultDto::getRoomTypeId, dto -> dto));
 
     Map<Integer, List<AvailableRoomInfo>> groupedByHotel = dbRooms.stream()
