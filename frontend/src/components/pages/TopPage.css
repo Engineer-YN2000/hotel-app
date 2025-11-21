@@ -30,6 +30,14 @@
   flex-direction: column;
 }
 
+/* --- エラーメッセージスタイル --- */
+.error-message {
+  color: #dc3545;
+  font-size: 0.875em;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
 .form-group label {
   font-weight: 600;
   margin-bottom: 8px;

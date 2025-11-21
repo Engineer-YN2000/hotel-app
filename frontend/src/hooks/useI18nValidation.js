@@ -10,6 +10,21 @@ const TRANSLATION_KEY_PREFIXES = [
   'app.',
 ];
 
+// HTTPステータスコード定数
+const HTTP_STATUS = {
+  BAD_REQUEST: 400,
+  NOT_FOUND: 404,
+  METHOD_NOT_ALLOWED: 405,
+  UNPROCESSABLE_ENTITY: 422,
+  INTERNAL_SERVER_ERROR: 500,
+};
+
+// バリデーション定数
+const VALIDATION_CONSTANTS = {
+  MIN_GUEST_COUNT: 1,
+  MAX_GUEST_COUNT: 99,
+};
+
 /**
  * React i18nextベースのバリデーションフック
  * JavaのMessageSourceと同様の機能をReactで提供
@@ -101,9 +116,12 @@ export const useI18nValidation = () => {
 
       // 宿泊人数のチェック
       const guestCount = parseInt(formData.guestCount, 10);
-      if (isNaN(guestCount) || guestCount < 1) {
+      if (
+        isNaN(guestCount) ||
+        guestCount < VALIDATION_CONSTANTS.MIN_GUEST_COUNT
+      ) {
         newErrors.guestCount = t('validation.form.guestCountMin');
-      } else if (guestCount > 99) {
+      } else if (guestCount > VALIDATION_CONSTANTS.MAX_GUEST_COUNT) {
         newErrors.guestCount = t('validation.form.guestCountMax');
       }
 
@@ -123,28 +141,47 @@ export const useI18nValidation = () => {
       if (error.message?.includes('Network') || error.name === 'NetworkError') {
         messageKey = 'validation.api.networkError';
         errorType = 'server'; // ネットワークエラーはサーバーエラー扱い
-      } else if (error.status === 400 || error.message?.includes('400')) {
+      } else if (
+        error.status === HTTP_STATUS.BAD_REQUEST ||
+        error.message?.includes('400')
+      ) {
         // 構文エラー: リクエスト形式の問題
         messageKey = 'validation.api.invalidRequest';
         errorType = 'client';
-      } else if (error.status === 404 || error.message?.includes('404')) {
+      } else if (
+        error.status === HTTP_STATUS.NOT_FOUND ||
+        error.message?.includes('404')
+      ) {
         // リソース未発見: 存在しないエンドポイント
         messageKey = 'validation.api.notFound';
         errorType = 'client';
-      } else if (error.status === 405 || error.message?.includes('405')) {
+      } else if (
+        error.status === HTTP_STATUS.METHOD_NOT_ALLOWED ||
+        error.message?.includes('405')
+      ) {
         // メソッド未許可: 不正なHTTPメソッド
         messageKey = 'validation.api.methodNotAllowed';
         errorType = 'client';
-      } else if (error.status === 422 || error.message?.includes('422')) {
+      } else if (
+        error.status === HTTP_STATUS.UNPROCESSABLE_ENTITY ||
+        error.message?.includes('422')
+      ) {
         // ビジネスルール違反: システムの整合性に反する値
         messageKey = 'validation.api.businessRuleViolation';
         errorType = 'client';
-      } else if (error.status === 500 || error.message?.includes('500')) {
+      } else if (
+        error.status === HTTP_STATUS.INTERNAL_SERVER_ERROR ||
+        error.message?.includes('500')
+      ) {
         // サーバーエラー: システム障害を示す（詳細は隠す）
         messageKey = 'validation.api.serverError';
         errorType = 'server';
       } else {
-        // その他の予期しないエラー（不明なエラーは安全のためサーバーエラー扱い）
+        // その他の予期しないエラー
+        // 【セキュリティ】詳細なエラー情報はブラウザーコンソールに出力しない
+        // 攻撃者がスタックトレース、URL、ユーザーエージェント等の情報を取得することを防止
+
+        // 不明なエラーは安全のためサーバーエラー扱い（ユーザーには一般的なメッセージを表示）
         messageKey = 'validation.api.searchFailed';
         errorType = 'server';
       }

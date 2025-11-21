@@ -31,11 +31,11 @@ const RefineForm = ({ selectedPrefectureId, onRefineSearch }) => {
           // デフォルトで全地域を選択状態にする
           setSelectedAreas(areas.map((area) => area.areaId));
         } else {
-          console.error('詳細地域の取得に失敗しました:', response.status);
+          // 【セキュリティ】APIエラーの詳細をコンソールに出力しない
           setAreaDetails([]);
         }
       } catch (error) {
-        console.error('詳細地域の取得エラー:', error);
+        // 【セキュリティ】エラー詳細をコンソールに出力しない
         setAreaDetails([]);
       } finally {
         setIsLoading(false);

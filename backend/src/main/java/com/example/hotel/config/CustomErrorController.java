@@ -28,6 +28,9 @@ public class CustomErrorController implements ErrorController {
   @RequestMapping("/error")
   @ResponseBody
   public ResponseEntity<Map<String, Object>> handleError(HttpServletRequest request) {
+    // 【セキュリティ設計】
+    // エラーレスポンスにはURIやリクエスト詳細を含めず、最小限の情報のみ提供
+    // 詳細なエラー情報はサーバーログに記録し、攻撃者による情報収集を防止
     Object status = request.getAttribute(RequestDispatcher.ERROR_STATUS_CODE);
     Object uri = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
 

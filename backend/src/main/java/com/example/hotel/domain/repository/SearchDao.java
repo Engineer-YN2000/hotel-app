@@ -18,18 +18,20 @@ public interface SearchDao {
 
   /**
    * 指定された条件（都道府県、日付）に基づいて利用可能なホテルと部屋タイプ、 及びその期間中の「予約済み室数」を取得する。
+   * <p>
+   * SQLパラメータ参照: SQLファイル内では comment-style parameter binding を使用 (例: &#47;*prefectureId*&#47;)
    *
    * @param prefectureId
-   *          都道府県Id (prefectures.prefecture_id)
+   *          都道府県ID (prefectures.prefecture_id) - UIから動的に渡される値
    * @param checkInDate
-   *          チェックイン日 (reservations.check_in_date)
+   *          チェックイン日 (reservations.check_in_date) - 検索対象期間の開始日
    * @param checkOutDate
-   *          チェックアウト日 (reservations.check_out_date)
+   *          チェックアウト日 (reservations.check_out_date) - 検索対象期間の終了日
    * @param reservedStatuses
-   *          予約済みとしてカウントする予約ステータスのリスト
+   *          予約済みとしてカウントする予約ステータスのリスト (ReservationStatus定数値)
    * @param options
-   *          SelectOptions（Doma2が自動使用）
-   * @return List<AvailableRoomInfo>
+   *          SelectOptions（Doma2が自動使用） - ページング、ソートオプション
+   * @return 利用可能なホテル・部屋タイプ・予約済み室数のリスト
    */
   @Select
   List<AvailableRoomInfo> searchAvailableRooms(Integer prefectureId, LocalDate checkInDate,

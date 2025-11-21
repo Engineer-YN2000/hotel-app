@@ -40,6 +40,9 @@ public class SearchService {
    * 空室検索を実行し、キャッシュ上の総在庫と予約済み件数から残在庫付き結果DTOを生成する。 キャッシュが空の場合は空結果を返す。
    */
   public SearchResultDto searchAvailableHotels(SearchCriteriaDto criteria) {
+    // 【セキュリティ設計】
+    // サービス層ではエラー時も空結果を返却し、内部エラー状態を外部に漏らさない
+    // 詳細なエラー情報はサーバーログに記録し、攻撃者によるシステム内部状態の推測を防止
 
     Map<Integer, RoomStockInfo> stockCache = cacheService.getStockCache();
     if (stockCache.isEmpty()) {
@@ -50,7 +53,7 @@ public class SearchService {
     // 都道府県IDで検索を実行（prefecture-based search への移行完了）
     Integer searchPrefectureId = criteria.getPrefectureId();
     if (searchPrefectureId == null) {
-      log.warn("都道府県IDが指定されていません。検索を中止します。");
+      log.warn("都道府県IDが指定されていません。検索を中止します。criteria={}", criteria);
       return SearchResultDto.createEmptyResult();
     }
 
@@ -79,7 +82,11 @@ public class SearchService {
   }
 
   /**
-   * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。
+   * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。 【重要】データベース設計による一意性保証について: このメソッドでは
+   * room_type_id をキーとする Map 変換を行うが、重複キー例外は発生しない。 理由: 1. room_types.room_type_id は PRIMARY KEY（自動採番）
+   * → システム全体で一意の値が保証される 2. room_types.hotel_id は FOREIGN KEY → 各部屋タイプは特定のホテルに紐づく 3.
+   * 同一検索条件（都道府県）内では、room_type_id の重複はデータベース制約上発生しない したがって、Collectors.toMap()
+   * での重複キー例外はデータ整合性が保たれている限り発生しない。
    */
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
       Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate) {
@@ -94,13 +101,6 @@ public class SearchService {
           return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
               cacheInfo.getRoomCapacity(), availableStock, dbRoom.getHotelId(), checkInDate);
         }).filter(roomDto -> roomDto.getAvailableStock() > 0)
-        /*
-         * 【重要】room_type_idをキーとするMapへの変換について 一見すると異なるホテルに同じroom_type_idが存在する場合に
-         * Map変換時に重複エラーが発生する可能性があるように見えるが、 データベース設計上この問題は回避されている： 1. room_types.room_type_id は
-         * PRIMARY KEY（自動採番） → システム全体で一意の値が保証される 2. room_types.hotel_id は FOREIGN KEY →
-         * 各部屋タイプは特定のホテルに紐づく 3. 同一検索条件（都道府県）内では、room_type_idの重複は データベース制約上発生しない
-         * したがって、Collectors.toMap()での重複キー例外は データ整合性が保たれている限り発生しない。
-         */
         .collect(Collectors.toMap(RoomTypeResultDto::getRoomTypeId, dto -> dto));
 
     Map<Integer, List<AvailableRoomInfo>> groupedByHotel = dbRooms.stream()

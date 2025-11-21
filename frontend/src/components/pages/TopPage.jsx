@@ -101,7 +101,8 @@ const TopPage = () => {
           }
         }
       } catch (error) {
-        console.error('初期データの取得に失敗しました', error);
+        // 【セキュリティ】詳細なエラー情報をコンソールに出力しない
+        // 初期データ取得失敗時は黙ってデフォルト状態で継続
       }
     };
 
@@ -174,18 +175,51 @@ const TopPage = () => {
   const handleSearch = async (e) => {
     e.preventDefault();
 
+    // 【セキュリティ強化】HTML5 required属性の回避を防ぐためのJavaScriptバリデーション
+    // 最初にすべてのエラーをクリア
+    clearError('dateValidation');
+    clearError('search');
+    clearError('prefecture');
+    clearError('guestCount');
+
+    let hasValidationError = false;
+
     // 日付バリデーションチェック
-    const error = validateDates(
+    const dateError = validateDates(
       checkInDate,
       checkOutDate,
       initialCheckInDate,
       initialCheckOutDate,
     );
-    if (error) {
-      setError('dateValidation', error);
+    if (dateError) {
+      setError('dateValidation', dateError);
+      hasValidationError = true;
+    }
+
+    // 都道府県選択の必須チェック（HTML required属性の回避対策）
+    const prefectureValue = e.target.elements['prefecture'].value;
+    if (!prefectureValue || prefectureValue === '') {
+      setError('prefecture', t('validation.prefecture.required'));
+      hasValidationError = true;
+    }
+
+    // 人数の範囲チェック（HTML min属性の回避対策）
+    const guestCountValue = e.target.elements['guests'].value;
+    const guestCountNum = parseInt(guestCountValue, 10);
+    if (
+      !guestCountValue ||
+      isNaN(guestCountNum) ||
+      guestCountNum < 1 ||
+      guestCountNum > 99
+    ) {
+      setError('guestCount', t('validation.guestCount.range'));
+      hasValidationError = true;
+    }
+
+    // バリデーションエラーがある場合は処理中止
+    if (hasValidationError) {
       return;
     }
-    clearError('dateValidation');
 
     setIsLoading(true);
     setShowResults(false);
@@ -236,8 +270,7 @@ const TopPage = () => {
         setShowNoResults(true);
       }
     } catch (error) {
-      console.error('検索APIの呼び出しに失敗しました', error);
-      console.error('エラー詳細:', error.message);
+      // 【セキュリティ】APIエラーの詳細をコンソールに出力しない
 
       // エラーハンドリング：4xxクライアントエラーと 5xxサーバーエラーを区別
       const errorResult = handleApiError(error, 'search');
@@ -346,6 +379,10 @@ const TopPage = () => {
                   </option>
                 ))}
               </select>
+              {/* セキュリティ: HTML required回避対策のエラー表示 */}
+              {getError('prefecture') && (
+                <div className="error-message">{getError('prefecture')}</div>
+              )}
             </div>
 
             {/* C-014: 人数選択  */}
@@ -357,15 +394,31 @@ const TopPage = () => {
                 name="guests"
                 defaultValue="2"
                 min="1"
+                max="99"
+                required
               />
+              {/* セキュリティ: HTML min/max回避対策のエラー表示 */}
+              {getError('guestCount') && (
+                <div className="error-message">{getError('guestCount')}</div>
+              )}
             </div>
 
             {/* C-015: 検索ボタン  */}
             <div className="form-actions">
               <button
                 type="submit"
-                className={`search-button ${isLoading || getError('dateValidation') ? 'btn-disabled' : ''}`}
-                disabled={isLoading || getError('dateValidation')}
+                className={`search-button ${isLoading || getError('dateValidation') || getError('prefecture') || getError('guestCount') ? 'btn-disabled' : ''}`}
+                disabled={
+                  isLoading ||
+                  getError('dateValidation') ||
+                  getError('prefecture') ||
+                  getError('guestCount')
+                }
+                // 【セキュリティ強化】ボタン無効化条件:
+                // - dateValidation: 日付バリデーションエラー
+                // - prefecture: 都道府県未選択エラー（HTML required回避対策）
+                // - guestCount: 人数範囲エラー（HTML min/max回避対策）
+                // - getError('search'): 無効化しない → APIエラー後の再試行を許可
               >
                 {isLoading ? t('buttons.searching') : t('buttons.search')}
               </button>

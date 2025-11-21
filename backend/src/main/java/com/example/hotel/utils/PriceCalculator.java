@@ -3,7 +3,8 @@ package com.example.hotel.utils;
 import java.time.LocalDate;
 
 /**
- * 価格計算ユーティリティクラス ホテルごとの料金体系とその日の需要定数を考慮したダイナミックプライシングを実装
+ * 価格計算ユーティリティクラス ホテルごとの料金体系とその日の需要定数を考慮したダイナミックプライシングを実装 【重要】価格計算の責務範囲: - このクラスは「1泊あたりの部屋料金」のみを計算 -
+ * 宿泊日数による乗算は呼び出し側（DTOやサービス層）で実行 - 複数泊の総額計算は RoomTypeResultDto.calculateTotalPrice() で実装
  */
 public class PriceCalculator {
 
@@ -36,24 +37,37 @@ public class PriceCalculator {
    *
    * @param capacity
    *          部屋の定員
-   * @return 計算された価格（部屋全体）
+   * @return 計算された価格（1泊あたりの部屋全体料金・円）
    */
   public static Integer calculatePrice(Integer capacity) {
     return calculatePrice(capacity, 1, LocalDate.now());
   }
 
   /**
-   * ホテルIDと日付を考慮したダイナミックプライシング価格計算 同じホテルでは同じ料金体系を使用し、その日の需要定数で価格を調整
+   * ホテルIDと日付を考慮したダイナミックプライシング価格計算 同じホテルでは同じ料金体系を使用し、その日の需要定数で価格を調整 【価格計算仕様】 - 戻り値:
+   * 1泊あたりの部屋全体料金（宿泊日数の乗算は呼び出し側で実行） - 基準価格: BASE_PRICE_PER_PERSON × 定員数 × 定員割引率 - 変動要素: ホテル料金係数 ×
+   * その日の需要係数 【引数制約】 - hotelId: null禁止。ダイナミックプライシングに必須のホテル識別子 - date: null禁止。需要ベースの価格調整に必須の日付情報 -
+   * capacity: nullまたは0以下の場合は基準価格を返却
    *
    * @param capacity
-   *          部屋の定員
+   *          部屋の定員（nullまたは0以下の場合は基準価格を適用）
    * @param hotelId
-   *          ホテルID（料金体系の決定に使用）
+   *          ホテルID（料金体系の決定に使用、null禁止）
    * @param date
-   *          宿泊予定日（需要定数の決定に使用）
-   * @return 計算された価格（部屋全体）
+   *          宿泊予定日（需要定数の決定に使用、null禁止）
+   * @return 計算された価格（1泊あたりの部屋全体料金・円）
+   * @throws IllegalArgumentException
+   *           hotelIdまたはdateがnullの場合
    */
   public static Integer calculatePrice(Integer capacity, Integer hotelId, LocalDate date) {
+    // 引数の適正性検証（ダイナミックプライシングに必須のパラメータ）
+    if (hotelId == null) {
+      throw new IllegalArgumentException("ホテルIDはnullであってはなりません。ダイナミックプライシングにはホテル識別子が必要です。");
+    }
+    if (date == null) {
+      throw new IllegalArgumentException("宿泊日はnullであってはなりません。需要ベースの価格調整には日付情報が必要です。");
+    }
+
     if (capacity == null || capacity <= 0) {
       return BASE_PRICE_PER_PERSON;
     }

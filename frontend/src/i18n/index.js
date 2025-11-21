@@ -28,11 +28,19 @@ const resources = {
           invalidDateRange:
             '日付の選択に問題があります。正しい日付を選択してください',
         },
+        // HTML5 required属性回避対策のバリデーションメッセージ
+        prefecture: {
+          required: '宿泊予定の都道府県を選択してください',
+        },
+        guestCount: {
+          range: '宿泊人数は1～99人の範囲で入力してください',
+        },
         form: {
           required: '必須項目です',
           prefectureRequired: '宿泊予定の都道府県を選択してください',
           guestCountMin: '宿泊人数は1名以上で入力してください',
           guestCountMax: '宿泊人数は99名以下で入力してください',
+          roomSelectionRequired: '予約するお部屋を選択してください。',
           capacityError:
             '宿泊人数（{{guestCount}}名）に対して、お部屋の定員（合計{{totalCapacity}}名）が不足しています。',
         },
@@ -138,18 +146,34 @@ const resources = {
           invalidDateRange:
             'There is an issue with the date selection. Please select the correct dates',
         },
+        // HTML5 required attribute bypass countermeasures
+        prefecture: {
+          required: 'Please select your preferred prefecture',
+        },
+        guestCount: {
+          range: 'Number of guests must be between 1 and 99',
+        },
         form: {
           required: 'This field is required',
           prefectureRequired: 'Please select your preferred prefecture',
           guestCountMin: 'Number of guests must be 1 or more',
           guestCountMax: 'Number of guests must be 99 or less',
+          roomSelectionRequired: 'Please select rooms to reserve.',
           capacityError:
-            'The room capacity (total {{totalCapacity}} guests) is insufficient for the number of guests ({{guestCount}} guests).',
+            'The number of guests ({{guestCount}} guests) exceeds the room capacity (total {{totalCapacity}} guests).',
         },
         api: {
           serverError: 'A server error occurred. Please try again later',
           networkError:
             'A network error occurred. Please check your connection',
+          invalidRequest:
+            'There is an issue with the request format. Please reload the page and try again',
+          notFound:
+            'The requested feature was not found. Please reload the page and try again',
+          methodNotAllowed:
+            'This operation is not allowed. Please reload the page and try again',
+          businessRuleViolation:
+            'The input values violate system constraints. Please enter correct values',
           searchFailed:
             'Search failed. Please try again with different criteria',
         },
@@ -200,7 +224,9 @@ const resources = {
           title: 'No rooms available for the specified dates and location.',
           subtitle: 'Please change your criteria and search again.',
         },
-        loading: {
+        loading: 'Loading...',
+        noAreasAvailable: 'No detailed areas are registered for the selected prefecture',
+        loadingDetailed: {
           initializing: 'Initializing...',
           searching: 'Searching...',
           loading: 'Loading...',
