@@ -25,7 +25,7 @@ const TopPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [originalSearchResult, setOriginalSearchResult] = useState(null); // 元の検索結果を保持
-  const [guestCount, setGuestCount] = useState(2); // 1-D  の検証用に保持（フォームのdefaultValueと統一）
+  const [guestCount, setGuestCount] = useState(2); // 1-Dの検証用に保持（フォームのdefaultValueと統一）
   const [selectedPrefectureId, setSelectedPrefectureId] = useState(null); // 絞り込み用
 
   // 日付バリデーション用の状態

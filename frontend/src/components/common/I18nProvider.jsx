@@ -50,7 +50,7 @@ const I18nProvider = ({ children }) => {
     return (
       <div className="i18n-loading-container">
         {/* i18n初期化前はグローバルスタンダードな英語でフォールバック */}
-        {i18n.isInitialized ? t('messages.loading.initializing', 'Loading...') : 'Loading...'}
+        {i18n.isInitialized ? t('messages.loadingDetailed.initializing', 'Loading...') : 'Loading...'}
       </div>
     );
   }

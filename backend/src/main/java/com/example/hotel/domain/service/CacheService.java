@@ -12,7 +12,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * アプリケーション起動時に「部屋タイプごとの定員・総在庫」を保持するキャッシュサービス
+ * アプリケーション起動時にロードした部屋タイプ別在庫情報と都道府県リストをキャッシュするサービス
+ *
+ * 検索処理で高速アクセスが必要な「部屋タイプ別の定員・総在庫」情報をメモリ上に保持。
+ * 每回のDBアクセスを防ぐことで性能を向上させる。
  */
 @Service
 public class CacheService {

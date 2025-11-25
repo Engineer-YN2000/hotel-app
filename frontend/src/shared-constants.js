@@ -8,7 +8,7 @@
  * - プロジェクト全体での一元管理を実現
  *
  * 【同期対象】
- * - バックエンド: TopPageController.java
+ * - バックエンド: /backend/src/main/java/com/example/hotel/top/TopPageController.java
  * - フロントエンド: useI18nValidation.js, TopPage.jsx
  */
 

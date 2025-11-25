@@ -10,15 +10,23 @@ import com.example.hotel.presentation.dto.HotelResultDto;
 import com.example.hotel.presentation.dto.RoomTypeResultDto;
 import lombok.extern.slf4j.Slf4j;
 import org.seasar.doma.jdbc.SelectOptions;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 空室検索業務サービス 【主要責務】 DAOの予約済み件数と起動時キャッシュ(総在庫)を突き合わせて残在庫を算出し、 検索結果DTOへ組み立てを行う。 【重要な注意事項】
+ * 空室検索業務サービス
+ *
+ * 【主要責務】
+ * DAOの予約済み件数と起動時キャッシュ(総在庫)を突き合わせて残在庫を算出し、
+ * 検索結果DTOへ組み立てを行う。
+ *
+ * 【重要な注意事項】
  * SQLクエリ内の予約ステータス値は ReservationStatus.RESERVED_STATUSES (TENTATIVE, CONFIRMED) と対応している。
  *
  * @see ReservationStatus 予約ステータス定数の定義
@@ -30,15 +38,29 @@ public class SearchService {
 
   private final SearchDao searchDao;
   private final CacheService cacheService;
+  private final MessageSource messageSource;
 
-  public SearchService(SearchDao searchDao, CacheService cacheService) {
+  public SearchService(SearchDao searchDao, CacheService cacheService,
+      MessageSource messageSource) {
     this.searchDao = searchDao;
     this.cacheService = cacheService;
+    this.messageSource = messageSource;
   }
 
   /**
-   * 空室検索を実行し、残在庫付き結果DTOを生成する。 【処理概要】 キャッシュ上の総在庫と予約済み件数から残在庫を計算し、 検索結果DTOを構築して返却する。 【戻り値の条件】 -
-   * キャッシュが空の場合: 空結果を返す - 検索結果が0件の場合: 空結果を返す - 正常な検索結果がある場合: ホテル・部屋情報を含む結果を返す
+   * 空室検索を実行し、残在庫付き結果DTOを生成する。
+   *
+   * 【処理概要】
+   * キャッシュ上の総在庫と予約済み件数から残在庫を計算し、
+   * 検索結果DTOを構築して返却する。
+   *
+   * 【戻り値の条件】
+   * - キャッシュが空の場合: 空結果を返す
+   * - 検索結果が0件の場合: 空結果を返す
+   * - 正常な検索結果がある場合: ホテル・部屋情報を含む結果を返す
+   *
+   * @param criteria 検索条件
+   * @return 検索結果DTO
    */
   public SearchResultDto searchAvailableHotels(SearchCriteriaDto criteria) {
     // 【セキュリティ設計】
@@ -47,14 +69,15 @@ public class SearchService {
 
     Map<Integer, RoomStockInfo> stockCache = cacheService.getStockCache();
     if (stockCache.isEmpty()) {
-      log.warn("在庫キャッシュが空です。起動時ローダーを確認してください。");
+      log.warn(messageSource.getMessage("log.service.cache.empty", null, Locale.getDefault()));
       return SearchResultDto.createEmptyResult();
     }
 
     // 都道府県IDで検索を実行（prefecture-based search への移行完了）
     Integer searchPrefectureId = criteria.getPrefectureId();
     if (searchPrefectureId == null) {
-      log.warn("都道府県IDが指定されていません。検索を中止します。criteria={}", criteria);
+      log.warn(messageSource.getMessage("log.service.prefecture.id.missing", new Object[]{criteria},
+          Locale.getDefault()));
       return SearchResultDto.createEmptyResult();
     }
 
@@ -62,32 +85,49 @@ public class SearchService {
         criteria.getCheckInDate(), criteria.getCheckOutDate(), ReservationStatus.RESERVED_STATUSES,
         SelectOptions.get());
 
-    log.debug("データベースから取得した部屋情報: {}件", dbRooms.size());
+    log.debug(messageSource.getMessage("log.service.rooms.retrieved", new Object[]{dbRooms.size()},
+        Locale.getDefault()));
     if (log.isDebugEnabled()) {
-      dbRooms.forEach(room -> log.debug(
-          "取得データ: hotelId={}, hotelName={}, roomTypeId={}, reservedCount={}, areaId={}",
-          room.getHotelId(), room.getHotelName(), room.getRoomTypeId(), room.getReservedCount(),
-          room.getAreaId()));
+      dbRooms.forEach(room -> log.debug(messageSource.getMessage(
+          "log.service.room.data.detail", new Object[]{room.getHotelId(), room.getHotelName(),
+              room.getRoomTypeId(), room.getReservedCount(), room.getAreaId()},
+          Locale.getDefault())));
     }
 
     List<HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms, stockCache,
         criteria.getCheckInDate());
 
     if (hotelResults.isEmpty()) {
-      log.info("検索結果が0件です。DBから{}件取得したが、在庫計算後に0件になりました。", dbRooms.size());
+      log.info(messageSource.getMessage("log.service.search.result.empty",
+          new Object[]{dbRooms.size()}, Locale.getDefault()));
       return SearchResultDto.createEmptyResult();
     }
 
-    log.info("検索結果件数: {}", hotelResults.size());
+    log.info(messageSource.getMessage("log.service.search.result.count",
+        new Object[]{hotelResults.size()}, Locale.getDefault()));
     return SearchResultDto.create(hotelResults, criteria);
   }
 
   /**
-   * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。 【重要】データベース設計による一意性保証について: このメソッドでは
-   * room_type_id をキーとする Map 変換を行うが、重複キー例外は発生しない。 理由: 1. room_types.room_type_id は PRIMARY KEY（自動採番）
-   * → システム全体で一意の値が保証される 2. room_types.hotel_id は FOREIGN KEY → 各部屋タイプは特定のホテルに紐づく 3.
-   * 同一検索条件（都道府県）内では、room_type_id の重複はデータベース制約上発生しない したがって、Collectors.toMap() での重複キー例外は
+   * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。
+   *
+   * 【重要】データベース設計による一意性保証について:
+   * このメソッドでは room_type_id をキーとする Map 変換を行うが、重複キー例外は発生しない。
+   *
+   * 理由:
+   * 1. room_types.room_type_id は PRIMARY KEY（自動採番）
+   *    → システム全体で一意の値が保証される
+   * 2. room_types.hotel_id は FOREIGN KEY
+   *    → 各部屋タイプは特定のホテルに紐づく
+   * 3. 同一検索条件（都道府県）内では、room_type_id の重複はデータベース制約上発生しない
+   *
+   * したがって、Collectors.toMap() での重複キー例外は
    * データ整合性が保たれている限り発生しない。
+   *
+   * @param dbRooms DAOから取得した部屋情報一覧
+   * @param stockCache 部屋タイプ別在庫キャッシュ
+   * @param checkInDate チェックイン日（価格計算用）
+   * @return ホテル結果DTO一覧
    */
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
       Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate) {

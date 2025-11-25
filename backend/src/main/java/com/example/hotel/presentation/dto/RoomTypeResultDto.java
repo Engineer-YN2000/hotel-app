@@ -7,7 +7,10 @@ import lombok.AllArgsConstructor;
 import java.time.LocalDate;
 
 /**
- * 1部屋タイプ分の検索結果DTO。残在庫と簡易的な価格を保持する。
+ * 部屋タイプ別の検索結果DTO
+ *
+ * 一つの部屋タイプに対する残在庫情報と価格情報を保持し、
+ * 複数泊の総額計算機能を提供します。
  */
 @Data
 @NoArgsConstructor
