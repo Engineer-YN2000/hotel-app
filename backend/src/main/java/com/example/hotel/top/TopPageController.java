@@ -187,7 +187,7 @@ public class TopPageController {
       // セキュリティ一貫性: 他のAPIエンドポイントと同様のエラーハンドリングを適用
       if (prefectureId == null || prefectureId < MIN_PREFECTURE_ID) {
         log.warn("無効な都道府県ID: 入力値={}, 最小値={}", prefectureId, MIN_PREFECTURE_ID);
-        // セキュリティ上、詳細なバリデーション情報を閘さず、空のリストを返却
+        // セキュリティ上、詳細なバリデーション情報を漏らさず、空のリストを返却
         return ResponseEntity.ok(List.of());
       }
 
