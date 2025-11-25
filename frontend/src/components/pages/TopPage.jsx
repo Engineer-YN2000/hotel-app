@@ -109,20 +109,37 @@ const TopPage = () => {
     fetchInitialData();
   }, [clearError]);
 
-  // チェックイン日変更時の処理
+  /**
+   * 日付連動処理 - UX最適化の実装パターン
+   *
+   * 【処理目的】
+   * チェックイン日変更時に、チェックアウト日を自動的に翌日に設定し、
+   * ユーザーの入力負荷を軽減する。ホテル予約では一般的なUXパターン。
+   *
+   * 【実装ポイント】
+   * 1. Date オブジェクトによる日付計算（タイムゾーン考慮）
+   * 2. setDate() メソッドによる安全な日付加算（月跨ぎ自動処理）
+   * 3. ISO文字列変換でHTMLのdate input形式に統一
+   * 4. バリデーション処理の分離（useEffect側で集約管理）
+   *
+   * 【注意事項】
+   * - new Date(dateString)はローカルタイムゾーンで解釈
+   * - toISOString()はUTC基準だが、split('T')[0]で日付部分のみ取得
+   * - 月末日の翌日は自動的に翌月1日になる（setDateの仕様）
+   */
   const handleCheckInChange = (e) => {
     const newCheckInDate = e.target.value;
     setCheckInDate(newCheckInDate);
 
-    // チェックイン日が変更されたら、チェックアウト日をチェックイン日+1に設定
+    // 【日付連動ロジック】チェックイン日+1日をチェックアウト日に自動設定
     if (newCheckInDate) {
       const checkInDate = new Date(newCheckInDate);
       const nextDay = new Date(checkInDate);
-      nextDay.setDate(checkInDate.getDate() + 1);
+      nextDay.setDate(checkInDate.getDate() + 1); // 月跨ぎも自動処理
       const newCheckOutDate = nextDay.toISOString().split('T')[0];
       setCheckOutDate(newCheckOutDate);
     }
-    // バリデーションはuseEffectで自動実行されるため、ここでは削除
+    // 【設計判断】バリデーションはuseEffectで集約管理（関心の分離）
   };
 
   // チェックアウト日変更時の処理
@@ -144,16 +161,39 @@ const TopPage = () => {
     setSelectedPrefectureId(null);
   };
 
-  // 絞り込み検索処理
+  /**
+   * クライアントサイド絞り込み検索 - パフォーマンス最適化パターン
+   *
+   * 【設計方針】
+   * サーバーへの再リクエストを避け、既取得の検索結果をフィルタリングすることで、
+   * レスポンス速度向上とサーバー負荷軽減を実現。
+   *
+   * 【アルゴリズム】
+   * 1. originalSearchResult（初回検索結果）を不変データとして保持
+   * 2. 地域IDの配列に基づいて Array.filter() でホテルを絞り込み
+   * 3. スプレッド演算子でオブジェクトを複製し、hotelsプロパティのみ更新
+   * 4. 結果数に応じて表示状態を切り替え（結果あり/なし）
+   *
+   * 【パフォーマンス特性】
+   * - 時間計算量: O(n) （nはホテル数）
+   * - 空間計算量: O(n) （フィルタ結果の新配列生成）
+   * - ネットワーク: 0（サーバー通信なし）
+   *
+   * 【エッジケース】
+   * - selectedAreaIds.length === 0: 全地域表示（絞り込み解除）
+   * - filteredHotels.length === 0: NoResults コンポーネント表示
+   */
   const handleRefineSearch = (selectedAreaIds) => {
-    // 元の検索結果を選択された地域でフィルタリング
+    // 【前提条件】元の検索結果の存在確認
     if (originalSearchResult && originalSearchResult.hotels) {
+      // 【フィルタリングロジック】地域ID配列による包含判定
       const filteredHotels = originalSearchResult.hotels.filter(
         (hotel) =>
-          selectedAreaIds.length === 0 ||
-          selectedAreaIds.includes(hotel.areaId),
+          selectedAreaIds.length === 0 || // 空配列 = 絞り込み解除
+          selectedAreaIds.includes(hotel.areaId), // 包含チェック
       );
 
+      // 【イミュータブル更新】元オブジェクトを破壊せずに新しい結果を作成
       const refinedResult = {
         ...originalSearchResult,
         hotels: filteredHotels,
@@ -161,7 +201,7 @@ const TopPage = () => {
 
       setSearchResult(refinedResult);
 
-      // 絞り込み結果に応じて表示を切り替え
+      // 【UI状態制御】結果数に基づく表示コンポーネントの切り替え
       if (filteredHotels.length > 0) {
         setShowResults(true);
         setShowNoResults(false);
@@ -407,7 +447,14 @@ const TopPage = () => {
             <div className="form-actions">
               <button
                 type="submit"
-                className={`search-button ${isLoading || getError('dateValidation') || getError('prefecture') || getError('guestCount') ? 'btn-disabled' : ''}`}
+                className={`search-button ${
+                  isLoading ||
+                  getError('dateValidation') ||
+                  getError('prefecture') ||
+                  getError('guestCount')
+                    ? 'btn-disabled'
+                    : ''
+                }`}
                 disabled={
                   isLoading ||
                   getError('dateValidation') ||

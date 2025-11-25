@@ -3,6 +3,11 @@
 -- 該当期間中の「予約済み室数」を取得する。
 -- パフォーマンス最適化: CTEの代わりに単一クエリでJOINを使用
 --
+-- 【集計ロジック】
+-- reserved_count: 検索期間と重複する予約の室数合計
+-- CASE文により、有効な予約（reservation_idが存在）のみを集計対象とする
+-- これにより、LEFT JOINでマッチしない場合の不正な集計を防止
+--
 -- 【重要】ダブルブッキング防止について
 -- このクエリは検索時点での在庫状況表示用です。
 -- 実際の予約処理時には、以下の対策が必要です：
@@ -16,7 +21,11 @@ SELECT
     h.hotel_name,
     rt.room_type_id,
     rt.room_type_name,
-    COALESCE(SUM(rd.room_count), 0) AS reserved_count,
+    COALESCE(SUM(CASE
+        WHEN res.reservation_id IS NOT NULL
+        THEN rd.room_count
+        ELSE 0
+    END), 0) AS reserved_count,
     ad.area_id
 FROM
     hotels h

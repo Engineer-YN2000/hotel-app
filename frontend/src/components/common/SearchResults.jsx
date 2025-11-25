@@ -18,10 +18,10 @@ const SearchResults = ({
   // { hotelId: { roomTypeId: count, ... }, ... }
   const [selectedRooms, setSelectedRooms] = useState({});
 
-  // 定数定義
-  const DEFAULT_NIGHTS = 2;
-  const LOW_STOCK_THRESHOLD = 3;
-  const MIN_ROOM_COUNT = 0;
+  // 定数定義 - マジックナンバー排除によりメンテナンス性と一貫性を保持
+  const DEFAULT_NIGHTS = 2; // 日付計算異常時のフォールバック値
+  const LOW_STOCK_THRESHOLD = 3; // 「残り○部屋！」表示の閾値
+  const MIN_ROOM_COUNT = 0; // 室数選択の最小値（input要素のmin/defaultValue属性で使用）
 
   // 宿泊日数を計算
   const numberOfNights = useMemo(() => {
@@ -33,13 +33,34 @@ const SearchResults = ({
     return dayDiff > 0 ? dayDiff : DEFAULT_NIGHTS; // 異常時はデフォルト値を使用
   }, [checkInDate, checkOutDate]);
 
-  // 1-D  のバリデーションロジック
+  /**
+   * 複雑なビジネスロジック - リアルタイム定員バリデーション
+   *
+   * 【処理概要】
+   * このuseMemoフックは、ユーザーが選択した部屋の合計定員と、
+   * 検索時に指定した宿泊人数を比較し、予約可能性をリアルタイム判定します。
+   *
+   * 【アルゴリズム】
+   * 1. 全ホテル・全部屋タイプを走査し、選択数量×定員を累積計算
+   * 2. 合計定員と宿泊人数を比較してエラー種別を決定
+   * 3. バリデーション結果を返却し、UIの状態制御に使用
+   *
+   * 【パフォーマンス考慮】
+   * - useMemoによる結果キャッシュ（selectedRooms、guestCount、hotels変更時のみ再計算）
+   * - O(h×r×s)の計算量（h:ホテル数, r:部屋タイプ数, s:選択された部屋）
+   *
+   * 【ビジネスルール】
+   * - 部屋未選択: 予約ボタン無効化
+   * - 定員不足: エラーメッセージ表示＋予約ボタン無効化
+   * - 定員充足: 予約処理許可
+   */
   const validation = useMemo(() => {
     let totalGuestsInSelectedRooms = 0;
     let capacityError = false;
     let roomSelectionError = false;
 
-    // 選択された全室の合計定員を計算
+    // 【Step1】選択された全室の合計定員を計算
+    // ネストしたforEachによる全組み合わせ走査
     hotels.forEach((hotel) => {
       hotel.roomTypes.forEach((roomType) => {
         const count = selectedRooms[hotel.hotelId]?.[roomType.roomTypeId] || 0;
@@ -49,9 +70,9 @@ const SearchResults = ({
 
     const hasSelectedRooms = totalGuestsInSelectedRooms > 0;
 
-    // バリデーションロジックの整理:
-    // 1. 部屋が選択されていない場合は部屋選択エラー
-    // 2. 部屋が選択されているが定員不足の場合は定員エラー
+    // 【Step2】バリデーションロジックの優先順位付き判定
+    // 優先度1: 部屋未選択エラー（基本的な選択要求）
+    // 優先度2: 定員不足エラー（ビジネスルール違反）
     if (!hasSelectedRooms) {
       roomSelectionError = true;
     } else if (guestCount > totalGuestsInSelectedRooms) {

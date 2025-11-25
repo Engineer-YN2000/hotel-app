@@ -18,8 +18,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 空室検索業務サービス。DAOの予約済み件数と起動時キャッシュ(総在庫)を突き合わせて残在庫を算出しDTOへ組み立てる。 注意: SQLクエリ内の予約ステータス値は
- * ReservationStatus.RESERVED_STATUSES (TENTATIVE, CONFIRMED) と対応
+ * 空室検索業務サービス 【主要責務】 DAOの予約済み件数と起動時キャッシュ(総在庫)を突き合わせて残在庫を算出し、 検索結果DTOへ組み立てを行う。 【重要な注意事項】
+ * SQLクエリ内の予約ステータス値は ReservationStatus.RESERVED_STATUSES (TENTATIVE, CONFIRMED) と対応している。
  *
  * @see ReservationStatus 予約ステータス定数の定義
  */
@@ -37,7 +37,8 @@ public class SearchService {
   }
 
   /**
-   * 空室検索を実行し、キャッシュ上の総在庫と予約済み件数から残在庫付き結果DTOを生成する。 キャッシュが空の場合は空結果を返す。
+   * 空室検索を実行し、残在庫付き結果DTOを生成する。 【処理概要】 キャッシュ上の総在庫と予約済み件数から残在庫を計算し、 検索結果DTOを構築して返却する。 【戻り値の条件】 -
+   * キャッシュが空の場合: 空結果を返す - 検索結果が0件の場合: 空結果を返す - 正常な検索結果がある場合: ホテル・部屋情報を含む結果を返す
    */
   public SearchResultDto searchAvailableHotels(SearchCriteriaDto criteria) {
     // 【セキュリティ設計】
@@ -78,15 +79,15 @@ public class SearchService {
     }
 
     log.info("検索結果件数: {}", hotelResults.size());
-    return new SearchResultDto(hotelResults, criteria, null);
+    return SearchResultDto.create(hotelResults, criteria);
   }
 
   /**
    * DAOから取得した行集合をホテル単位に集約し、部屋タイプ毎の残在庫を計算してホテル結果DTO一覧へ変換する。 【重要】データベース設計による一意性保証について: このメソッドでは
    * room_type_id をキーとする Map 変換を行うが、重複キー例外は発生しない。 理由: 1. room_types.room_type_id は PRIMARY KEY（自動採番）
    * → システム全体で一意の値が保証される 2. room_types.hotel_id は FOREIGN KEY → 各部屋タイプは特定のホテルに紐づく 3.
-   * 同一検索条件（都道府県）内では、room_type_id の重複はデータベース制約上発生しない したがって、Collectors.toMap()
-   * での重複キー例外はデータ整合性が保たれている限り発生しない。
+   * 同一検索条件（都道府県）内では、room_type_id の重複はデータベース制約上発生しない したがって、Collectors.toMap() での重複キー例外は
+   * データ整合性が保たれている限り発生しない。
    */
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
       Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate) {

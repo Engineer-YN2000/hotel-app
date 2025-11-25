@@ -17,9 +17,8 @@ import java.util.List;
 public interface SearchDao {
 
   /**
-   * 指定された条件（都道府県、日付）に基づいて利用可能なホテルと部屋タイプ、 及びその期間中の「予約済み室数」を取得する。
-   * <p>
-   * SQLパラメータ参照: comment-style parameter binding の具体例は以下のSQLファイルを参照<br>
+   * 指定された条件（都道府県、日付）に基づいて利用可能なホテルと部屋タイプ、 及びその期間中の「予約済み室数」を取得する。 SQLパラメータ参照: comment-style parameter
+   * binding の具体例は以下のSQLファイルを参照
    * {@code META-INF/com/example/hotel/domain/repository/SearchDao/searchAvailableRooms.sql}
    *
    * @param prefectureId

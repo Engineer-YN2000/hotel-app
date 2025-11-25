@@ -22,7 +22,6 @@ public class CustomErrorController implements ErrorController {
   // HTTPステータスコード定数
   private static final int HTTP_STATUS_NOT_FOUND = 404;
   private static final int HTTP_STATUS_METHOD_NOT_ALLOWED = 405;
-  private static final int HTTP_STATUS_UNPROCESSABLE_ENTITY = 422;
   private static final int HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
 
   @RequestMapping("/error")
@@ -59,10 +58,10 @@ public class CustomErrorController implements ErrorController {
           return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(
               Map.of("errorCode", "METHOD_NOT_ALLOWED", "status", HTTP_STATUS_METHOD_NOT_ALLOWED));
 
-        case HTTP_STATUS_UNPROCESSABLE_ENTITY :
+        case 422 :
           log.warn("ビジネスルール違反: {}", requestURI);
-          return ResponseEntity.status(HTTP_STATUS_UNPROCESSABLE_ENTITY).body(Map.of("errorCode",
-              "BUSINESS_RULE_VIOLATION", "status", HTTP_STATUS_UNPROCESSABLE_ENTITY));
+          return ResponseEntity.status(HttpStatus.valueOf(422)).body(Map.of("errorCode",
+              "BUSINESS_RULE_VIOLATION", "status", HttpStatus.valueOf(422).value()));
 
         case HTTP_STATUS_INTERNAL_SERVER_ERROR :
           log.error("内部サーバーエラー: {}", requestURI);

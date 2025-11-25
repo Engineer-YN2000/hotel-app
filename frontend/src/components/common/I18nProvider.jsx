@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './I18nProvider.css';
 
+// タイムアウト設定定数（コンポーネント外で定義し、レンダリングごとの再作成を回避）
+const INITIALIZATION_TIMEOUT_MS = 1000;
+
 /**
  * i18next初期化チェック用コンポーネント
  * JavaのMessageSourceが完全に読み込まれるまで待機する機能と同等
  */
 const I18nProvider = ({ children }) => {
-  // タイムアウト設定定数
-  const INITIALIZATION_TIMEOUT_MS = 1000;
   const { i18n, t } = useTranslation();
   const [isReady, setIsReady] = useState(false);
 
@@ -43,12 +44,13 @@ const I18nProvider = ({ children }) => {
     return () => {
       // 既に初期化済みの場合は何もしない
     };
-  }, [i18n, INITIALIZATION_TIMEOUT_MS]);
+  }, [i18n]);
 
   if (!isReady) {
     return (
       <div className="i18n-loading-container">
-        {t('messages.loading.initializing', '初期化中...')}
+        {/* i18n初期化前はグローバルスタンダードな英語でフォールバック */}
+        {i18n.isInitialized ? t('messages.loading.initializing', 'Loading...') : 'Loading...'}
       </div>
     );
   }

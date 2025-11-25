@@ -27,6 +27,9 @@ const resources = {
             'チェックアウト日はチェックイン日より後の日付を選択してください',
           invalidDateRange:
             '日付の選択に問題があります。正しい日付を選択してください',
+          // バックエンドから送信される新しいメッセージキー
+          checkInRequired: 'チェックイン日を入力してください',
+          checkOutRequired: 'チェックアウト日を入力してください',
         },
         // HTML5 required属性回避対策のバリデーションメッセージ
         prefecture: {
@@ -145,6 +148,9 @@ const resources = {
           checkOutBeforeCheckIn: 'Check-out date must be after check-in date',
           invalidDateRange:
             'There is an issue with the date selection. Please select the correct dates',
+          // Backend message keys
+          checkInRequired: 'Please enter your check-in date',
+          checkOutRequired: 'Please enter your check-out date',
         },
         // HTML5 required attribute bypass countermeasures
         prefecture: {
@@ -225,7 +231,8 @@ const resources = {
           subtitle: 'Please change your criteria and search again.',
         },
         loading: 'Loading...',
-        noAreasAvailable: 'No detailed areas are registered for the selected prefecture',
+        noAreasAvailable:
+          'No detailed areas are registered for the selected prefecture',
         loadingDetailed: {
           initializing: 'Initializing...',
           searching: 'Searching...',
