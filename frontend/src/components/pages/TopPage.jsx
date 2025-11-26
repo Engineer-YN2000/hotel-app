@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-// import CalendarModal from '../common/CalendarModal'; // (カレンダーは今回使わない)
 import RefineForm from '../common/RefineForm'; // C-020
 import SearchResults from '../common/SearchResults'; // C-030
 import NoResults from '../common/NoResults'; // C-040

@@ -120,10 +120,7 @@ export const useI18nValidation = () => {
 
       // 宿泊人数のチェック
       const guestCount = parseInt(formData.guestCount, 10);
-      if (
-        isNaN(guestCount) ||
-        guestCount < GUEST_COUNT_CONSTRAINTS.MIN
-      ) {
+      if (isNaN(guestCount) || guestCount < GUEST_COUNT_CONSTRAINTS.MIN) {
         newErrors.guestCount = t('validation.form.guestCountMin');
       } else if (guestCount > GUEST_COUNT_CONSTRAINTS.MAX) {
         newErrors.guestCount = t('validation.form.guestCountMax');

@@ -7,6 +7,7 @@ import com.example.hotel.domain.model.AreaDetail;
 import com.example.hotel.presentation.dto.SearchCriteriaDto;
 import com.example.hotel.presentation.dto.SearchResultDto;
 import com.example.hotel.presentation.dto.ApiErrorResponseDto;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -108,7 +109,7 @@ public class TopPageController {
         // 【API設計改善】成功レスポンスとエラーレスポンスを明確に分離
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkInRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       // 【検証2】チェックアウト日必須パラメータの検証
@@ -118,7 +119,7 @@ public class TopPageController {
             new Object[]{criteria}, Locale.getDefault()));
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkOutRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       // 【検証3】チェックイン日の過去日検証
@@ -129,7 +130,7 @@ public class TopPageController {
             new Object[]{criteria.getCheckInDate(), today, criteria}, Locale.getDefault()));
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkInPastDate", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       // 【検証4】チェックアウト日の論理的整合性検証
@@ -141,7 +142,7 @@ public class TopPageController {
             Locale.getDefault()));
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkOutBeforeCheckIn", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       // 【検証5】都道府県ID範囲検証
@@ -154,7 +155,7 @@ public class TopPageController {
             Locale.getDefault()));
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.form.prefectureRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       // 【検証6】宿泊人数範囲検証
@@ -166,7 +167,7 @@ public class TopPageController {
             Locale.getDefault()));
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.guestCount.range", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
       log.info(messageSource.getMessage("log.search.request.received", new Object[]{criteria},
@@ -185,7 +186,7 @@ public class TopPageController {
           new Object[]{e.getMessage(), criteria}, Locale.getDefault()));
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto
           .create("validation.api.invalidRequest", 422, "/api/search");
-      return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+      return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
     }
     catch (IllegalArgumentException e) {
       /**
@@ -203,7 +204,7 @@ public class TopPageController {
 
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create(messageKey, 422,
           "/api/search");
-      return ResponseEntity.status(HttpStatus.valueOf(422)).body(errorResponse);
+      return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
     }
     catch (Exception e) {
       /**

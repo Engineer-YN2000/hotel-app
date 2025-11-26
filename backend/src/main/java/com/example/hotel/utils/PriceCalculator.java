@@ -1,6 +1,11 @@
 package com.example.hotel.utils;
 
 import java.time.LocalDate;
+import org.springframework.stereotype.Component;
+
+import com.example.hotel.config.PriceProperties;
+
+import jakarta.annotation.PostConstruct;
 
 /**
  * 価格計算ユーティリティクラス
@@ -11,32 +16,28 @@ import java.time.LocalDate;
  * - このクラスは「1泊あたりの部屋料金」のみを計算
  * - 宿泊日数による乗算は呼び出し側（DTOやサービス層）で実行
  * - 複数泊の総額計算は RoomTypeResultDto.calculateTotalPrice() で実装
+ *
+ * 【注意】
+ * このクラスは演習用のモッククラスであり、実際の運用環境ではプロパティファイルやデータベースから設定を取得する設計が推奨されます。
  */
+@Component
 public class PriceCalculator {
+
+  private static PriceProperties properties;
+
+  private final PriceProperties priceProperties;
 
   /**
    * ユーティリティクラスのため、インスタンス化を防ぐprivateコンストラクタ
    */
-  private PriceCalculator() {
-    throw new UnsupportedOperationException("Utility class cannot be instantiated");
+  private PriceCalculator(PriceProperties priceProperties) {
+    this.priceProperties = priceProperties;
   }
 
-  // 価格設定定数
-  private static final int BASE_PRICE_PER_PERSON = 8000; // 一人当たりの基準価格（円）
-  private static final double[] CAPACITY_MULTIPLIERS = {1.0, // 1人: 基準価格
-      0.9, // 2人: 10%割引
-      0.85, // 3人: 15%割引
-      0.8, // 4人: 20%割引
-      0.75 // 5人以上: 25%割引
-  };
-
-  // ダイナミックプライシング定数
-  private static final int HOTEL_PRICE_VARIATION_COUNT = 5; // ホテル価格バリエーション数
-  private static final double HOTEL_PRICE_VARIATION_STEP = 0.1; // ホテル価格変動幅（10%刻み）
-  private static final double HOTEL_PRICE_BASE_OFFSET = 0.2; // ホテル価格基準オフセット（±20%範囲）
-  private static final int DEMAND_VARIATION_CYCLE = 20; // 需要変動サイクル（日）
-  private static final double DEMAND_VARIATION_STEP = 0.01; // 需要変動幅（1%刻み）
-  private static final double DEMAND_BASE_FACTOR = 0.9; // 需要基準係数（90%から開始）
+  @PostConstruct
+  private void init() {
+    properties = this.priceProperties;
+  }
 
   /**
    * 部屋の定員に基づいて価格を計算します（後方互換性のため）
@@ -116,34 +117,35 @@ public class PriceCalculator {
 
     // 【Step2】容量チェック - 異常値に対するフォールバック
     if (capacity == null || capacity <= 0) {
-      return BASE_PRICE_PER_PERSON;
+      return properties.getBasePerPerson();
     }
 
     // 【Step3】ホテル固有係数の計算 - IDベースの一貫した価格体系
     // ホテルIDを基にした疑似ランダムだが再現可能な係数生成
-    double hotelPriceMultiplier = 1.0
-        + ((hotelId % HOTEL_PRICE_VARIATION_COUNT) * HOTEL_PRICE_VARIATION_STEP
-            - HOTEL_PRICE_BASE_OFFSET);
+    double hotelPriceMultiplier = properties.getHotelPriceBaseMultiplier()
+        + ((hotelId % properties.getHotelVariationCount()) * properties.getHotelVariationStep()
+            - properties.getHotelBaseOffset());
 
     // 【Step4】定員効率係数の適用 - 宿泊人数による割引システム
     // 配列範囲外アクセス防止 + 5人以上は最大割引率適用
-    double capacityMultiplier = capacity <= CAPACITY_MULTIPLIERS.length
-        ? CAPACITY_MULTIPLIERS[capacity - 1]
-        : CAPACITY_MULTIPLIERS[CAPACITY_MULTIPLIERS.length - 1];
+    double capacityMultiplier = capacity <= properties.getCapacityMultipliers().size()
+        ? properties.getCapacityMultipliers().get(capacity - 1)
+        : properties.getCapacityMultipliers().get(properties.getCapacityMultipliers().size() - 1);
 
     // 【Step5】基本価格の算出 - 複数要素の合成計算
-    int basePrice = (int) (BASE_PRICE_PER_PERSON * capacityMultiplier * capacity
+    int basePrice = (int) (properties.getBasePerPerson() * capacityMultiplier * capacity
         * hotelPriceMultiplier);
 
     // 【Step6】需要変動係数の計算 - 日付ベースの季節調整
     // 年間通じて周期的に変動する需要パターンをシミュレート
     int dayOfYear = date.getDayOfYear();
-    double demandFactor = DEMAND_BASE_FACTOR
-        + ((dayOfYear % DEMAND_VARIATION_CYCLE) * DEMAND_VARIATION_STEP);
+    double demandFactor = properties.getDemandBaseFactor()
+        + ((dayOfYear % properties.getDemandVariationCycle())
+            * properties.getDemandVariationStep());
 
     // 【Step7】最終価格の決定 - ビジネス要件（最低価格保証）の適用
     int finalPrice = (int) (basePrice * demandFactor);
 
-    return Math.max(finalPrice, BASE_PRICE_PER_PERSON); // 最低価格保証
+    return Math.max(finalPrice, properties.getBasePerPerson()); // 最低価格保証
   }
 }
