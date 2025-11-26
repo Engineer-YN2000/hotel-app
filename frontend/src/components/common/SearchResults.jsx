@@ -93,16 +93,25 @@ const SearchResults = ({
     const hotelStates = {};
     hotels.forEach((hotel) => {
       const hotelRooms = selectedRooms[hotel.hotelId] || {};
-      const hasSelectedRooms = Object.values(hotelRooms).some(
-        (count) => count > 0,
-      );
+
+      // そのホテルで選択された部屋の合計定員を計算
+      let hotelTotalCapacity = 0;
+      hotel.roomTypes.forEach((roomType) => {
+        const count = hotelRooms[roomType.roomTypeId] || 0;
+        hotelTotalCapacity += count * roomType.capacity;
+      });
+
+      const hasSelectedRooms = hotelTotalCapacity > 0;
+      // 定員が宿泊人数以上の場合のみ予約可能
+      const hasEnoughCapacity = hotelTotalCapacity >= guestCount;
+
       hotelStates[hotel.hotelId] = {
-        disabled: validation.hasAnyValidationError || !hasSelectedRooms,
+        disabled: !hasSelectedRooms || !hasEnoughCapacity,
         hasSelectedRooms,
       };
     });
     return hotelStates;
-  }, [hotels, selectedRooms, validation.hasAnyValidationError]);
+  }, [hotels, selectedRooms, guestCount]);
 
   const handleRoomCountChange = (hotelId, roomTypeId, count) => {
     // 数値を最小値以上に補正

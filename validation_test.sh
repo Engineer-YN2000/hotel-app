@@ -1,13 +1,23 @@
 #!/bin/bash
+if [ ! -x "$0" ]; then
+    chmod +x "$0"
+fi
 echo "=== バックエンドバリデーションテスト ==="
 echo "注意: バックエンドサーバーが http://localhost:8080 で起動している必要があります"
 echo ""
 
 # 動的日付計算（現在日時基準）
-TODAY=$(date +%Y-%m-%d)
-TOMORROW=$(date -d "+1 day" +%Y-%m-%d)
-DAY_AFTER_TOMORROW=$(date -d "+2 days" +%Y-%m-%d)
-YESTERDAY=$(date -d "-1 day" +%Y-%m-%d)
+if [[ "$(uname)" == "Darwin" ]]; then
+    TODAY=$(date +%Y-%m-%d)
+    TOMORROW=$(date -v+1d +%Y-%m-%d)
+    DAY_AFTER_TOMORROW=$(date -v+2d +%Y-%m-%d)
+    YESTERDAY=$(date -v-1d +%Y-%m-%d)
+else
+    TODAY=$(date +%Y-%m-%d)
+    TOMORROW=$(date -d "+1 day" +%Y-%m-%d)
+    DAY_AFTER_TOMORROW=$(date -d "+2 days" +%Y-%m-%d)
+    YESTERDAY=$(date -d "-1 day" +%Y-%m-%d)
+fi
 
 echo "テスト実行日: $TODAY"
 echo "使用する日付: チェックイン=$TOMORROW, チェックアウト=$DAY_AFTER_TOMORROW"

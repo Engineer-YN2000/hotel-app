@@ -1,11 +1,13 @@
 package com.example.hotel.utils;
 
 import java.time.LocalDate;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
 
 import com.example.hotel.config.PriceProperties;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 価格計算ユーティリティクラス
@@ -21,22 +23,27 @@ import jakarta.annotation.PostConstruct;
  * このクラスは演習用のモッククラスであり、実際の運用環境ではプロパティファイルやデータベースから設定を取得する設計が推奨されます。
  */
 @Component
+@Slf4j
 public class PriceCalculator {
 
   private static PriceProperties properties;
+  private static MessageSource messageSource;
 
   private final PriceProperties priceProperties;
+  private final MessageSource msgSource;
 
   /**
    * ユーティリティクラスのため、インスタンス化を防ぐprivateコンストラクタ
    */
-  private PriceCalculator(PriceProperties priceProperties) {
+  private PriceCalculator(PriceProperties priceProperties, MessageSource messageSource) {
     this.priceProperties = priceProperties;
+    this.msgSource = messageSource;
   }
 
   @PostConstruct
   private void init() {
     properties = this.priceProperties;
+    messageSource = this.msgSource;
   }
 
   /**
@@ -106,12 +113,23 @@ public class PriceCalculator {
    * - 再現性: 同じ引数に対して常に同じ結果を返す（副作用なし）
    */
   public static Integer calculatePrice(Integer capacity, Integer hotelId, LocalDate date) {
+    // 【Step0】初期化チェック - Spring起動前の呼び出しを防止
+    if (properties == null || messageSource == null) {
+      throw new IllegalStateException(
+          "PriceCalculator has not been initialized. Ensure Spring context is loaded.");
+    }
+
     // 【Step1】引数バリデーション - null安全性の確保
     // 【設計意図】技術的詳細を隠蔽し、プレゼンテーション層で適切なユーザーメッセージに変換する
     if (hotelId == null) {
+      String logMessage = messageSource.getMessage("log.price.calculation.hotelid.null", null,
+          null);
+      log.error(logMessage);
       throw new IllegalArgumentException("PRICE_CALCULATION_ERROR");
     }
     if (date == null) {
+      String logMessage = messageSource.getMessage("log.price.calculation.date.null", null, null);
+      log.error(logMessage);
       throw new IllegalArgumentException("PRICE_CALCULATION_ERROR");
     }
 
@@ -128,9 +146,19 @@ public class PriceCalculator {
 
     // 【Step4】定員効率係数の適用 - 宿泊人数による割引システム
     // 配列範囲外アクセス防止 + 5人以上は最大割引率適用
-    double capacityMultiplier = capacity <= properties.getCapacityMultipliers().size()
-        ? properties.getCapacityMultipliers().get(capacity - 1)
-        : properties.getCapacityMultipliers().get(properties.getCapacityMultipliers().size() - 1);
+    double capacityMultiplier;
+    if (properties.getCapacityMultipliers().isEmpty()) {
+      // 設定が空の場合は基準値1.0を使用
+      capacityMultiplier = 1.0;
+    }
+    else if (capacity <= properties.getCapacityMultipliers().size()) {
+      capacityMultiplier = properties.getCapacityMultipliers().get(capacity - 1);
+    }
+    else {
+      // 定員が設定範囲を超える場合は最大割引率を適用
+      capacityMultiplier = properties.getCapacityMultipliers()
+          .get(properties.getCapacityMultipliers().size() - 1);
+    }
 
     // 【Step5】基本価格の算出 - 複数要素の合成計算
     int basePrice = (int) (properties.getBasePerPerson() * capacityMultiplier * capacity
