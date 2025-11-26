@@ -1,8 +1,10 @@
 package com.example.hotel.domain.service;
 
+import com.example.hotel.domain.model.Prefecture;
 import com.example.hotel.domain.model.RoomStockInfo;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,13 +12,19 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * アプリケーション起動時に「部屋タイプごとの定員・総在庫」を保持するキャッシュサービス
+ * アプリケーション起動時にロードした部屋タイプ別在庫情報と都道府県リストをキャッシュするサービス
+ *
+ * 検索処理で高速アクセスが必要な「部屋タイプ別の定員・総在庫」情報をメモリ上に保持。
+ * 每回のDBアクセスを防ぐことで性能を向上させる。
  */
 @Service
-public class RoomStockCacheService {
+public class CacheService {
 
   // 部屋タイプIDをキー、RoomStockInfoを値とするキャッシュマップ
   private Map<Integer, RoomStockInfo> stockCache = new ConcurrentHashMap<>();
+
+  // 都道府県情報キャッシュ
+  private List<Prefecture> prefectureCache = Collections.emptyList();
 
   /**
    * DBから取得した部屋タイプごとの定員・総在庫情報でキャッシュを更新する
@@ -33,6 +41,15 @@ public class RoomStockCacheService {
   }
 
   /**
+   * DBから取得した都道府県情報でキャッシュを更新する
+   */
+  public void updatePrefectureCache(List<Prefecture> prefectures) {
+    if (prefectures != null) {
+      this.prefectureCache = List.copyOf(prefectures); // Immutable Listとして保持
+    }
+  }
+
+  /**
    * キャッシュされた全在庫情報を取得する
    */
   public Map<Integer, RoomStockInfo> getStockCache() {
@@ -41,9 +58,16 @@ public class RoomStockCacheService {
   }
 
   /**
+   * キャッシュされた都道府県情報を取得する
+   */
+  public List<Prefecture> getPrefectureCache() {
+    return this.prefectureCache;
+  }
+
+  /**
    * キャッシュが空かどうかを返す
    */
   public boolean isEmpty() {
-    return this.stockCache.isEmpty();
+    return this.stockCache.isEmpty() && this.prefectureCache.isEmpty();
   }
 }

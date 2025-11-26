@@ -1,0 +1,8 @@
+/* I18nProvider のローディング表示スタイル */
+.i18n-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 18px;
+}
