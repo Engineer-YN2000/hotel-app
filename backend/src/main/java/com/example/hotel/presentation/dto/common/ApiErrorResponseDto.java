@@ -1,4 +1,4 @@
-package com.example.hotel.presentation.dto;
+package com.example.hotel.presentation.dto.common;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

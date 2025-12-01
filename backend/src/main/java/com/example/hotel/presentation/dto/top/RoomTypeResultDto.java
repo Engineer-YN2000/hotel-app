@@ -1,4 +1,4 @@
-package com.example.hotel.presentation.dto;
+package com.example.hotel.presentation.dto.top;
 
 import com.example.hotel.utils.PriceCalculator;
 import lombok.Data;
@@ -11,12 +11,14 @@ import java.time.LocalDate;
  *
  * 一つの部屋タイプに対する残在庫情報と価格情報を保持し、
  * 複数泊の総額計算機能を提供します。
+ * HotelResultDtoの子要素として使用される。
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoomTypeResultDto {
   private Integer roomTypeId;
+  private Integer hotelId;
   private String roomTypeName;
   private Integer capacity;
   private Integer availableStock;

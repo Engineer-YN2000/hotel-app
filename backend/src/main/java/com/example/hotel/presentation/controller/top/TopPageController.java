@@ -1,12 +1,12 @@
-package com.example.hotel.top;
+package com.example.hotel.presentation.controller.top;
 
 import com.example.hotel.domain.service.CacheService;
 import com.example.hotel.domain.service.SearchService;
 import com.example.hotel.domain.repository.AreaDetailDao;
 import com.example.hotel.domain.model.AreaDetail;
-import com.example.hotel.presentation.dto.SearchCriteriaDto;
-import com.example.hotel.presentation.dto.SearchResultDto;
-import com.example.hotel.presentation.dto.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.top.SearchCriteriaDto;
+import com.example.hotel.presentation.dto.top.SearchResultDto;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;

@@ -162,6 +162,7 @@
                     <consoleOutput>true</consoleOutput>
                     <failsOnError>true</failsOnError>
                     <failOnViolation>true</failOnViolation>
+                    <suppressionsFile>config/checkstyle-suppressions.xml</suppressionsFile>
                 </configuration>
                 <dependencies>
                     <dependency>

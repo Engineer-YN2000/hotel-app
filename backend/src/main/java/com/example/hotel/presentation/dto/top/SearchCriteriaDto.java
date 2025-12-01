@@ -1,11 +1,14 @@
-package com.example.hotel.presentation.dto;
+package com.example.hotel.presentation.dto.top;
 
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDate;
 
 /**
- * 空室検索条件入力DTO。チェックイン/アウト日・都道府県・人数などの検索パラメータを保持する。
+ * 空室検索条件入力DTO
+ *
+ * チェックイン/アウト日・都道府県・人数などの検索パラメータを保持する。
+ * TopPageControllerの検索APIで使用される。
  */
 @Data
 public class SearchCriteriaDto {

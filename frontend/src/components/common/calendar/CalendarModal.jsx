@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import './CalendarModal.css';
 
 /**
@@ -6,30 +7,49 @@ import './CalendarModal.css';
  * (外見のみの実装)
  */
 const CalendarModal = ({ onClose, target }) => {
+  const { t } = useTranslation();
+
   // 要件 に従い、グレーアウトロジックは実装せず、外見のみとします。
   // (P-010/C-040の空き室グレーアウト表示)
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="calendar-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="calendar-header" aria-label="カレンダーの月表示">
-          <button type="button" className="nav-arrow" aria-label="前の月へ">
+        <div
+          className="calendar-header"
+          aria-label={t('calendar.monthDisplay')}
+        >
+          <button
+            type="button"
+            className="nav-arrow"
+            aria-label={t('calendar.previousMonth')}
+          >
             &lt;
           </button>
-          <span className="month-year">2025年 12月</span>
-          <button type="button" className="nav-arrow" aria-label="次の月へ">
+          <span className="month-year">
+            {t('calendar.monthYear', { year: 2025, month: 12 })}
+          </span>
+          <button
+            type="button"
+            className="nav-arrow"
+            aria-label={t('calendar.nextMonth')}
+          >
             &gt;
           </button>
         </div>
-        <div className="calendar-grid" role="grid" aria-label="月の日付">
+        <div
+          className="calendar-grid"
+          role="grid"
+          aria-label={t('calendar.daysGrid')}
+        >
           {/* ヘッダー */}
-          <div className="day-header">日</div>
-          <div className="day-header">月</div>
-          <div className="day-header">火</div>
-          <div className="day-header">水</div>
-          <div className="day-header">木</div>
-          <div className="day-header">金</div>
-          <div className="day-header">土</div>
+          <div className="day-header">{t('calendar.weekdays.sun')}</div>
+          <div className="day-header">{t('calendar.weekdays.mon')}</div>
+          <div className="day-header">{t('calendar.weekdays.tue')}</div>
+          <div className="day-header">{t('calendar.weekdays.wed')}</div>
+          <div className="day-header">{t('calendar.weekdays.thu')}</div>
+          <div className="day-header">{t('calendar.weekdays.fri')}</div>
+          <div className="day-header">{t('calendar.weekdays.sat')}</div>
 
           {/* 日付 (ダミー) */}
           <div className="day-cell day-other-month">30</div>
@@ -72,9 +92,9 @@ const CalendarModal = ({ onClose, target }) => {
           type="button"
           onClick={onClose}
           className="close-button"
-          aria-label="カレンダーを閉じる"
+          aria-label={t('calendar.closeCalendar')}
         >
-          閉じる
+          {t('calendar.close')}
         </button>
       </div>
     </div>
