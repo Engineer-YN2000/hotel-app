@@ -13,6 +13,7 @@ import com.example.hotel.domain.service.ReservationService;
 import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
 import com.example.hotel.presentation.dto.reservation.ReservationRequestDto;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
@@ -29,57 +30,35 @@ public class ReservationController {
   }
 
   @PostMapping("/pending")
-  public ResponseEntity<?> createPending(@RequestBody ReservationRequestDto request) {
+  public ResponseEntity<?> createPending(@Valid @RequestBody ReservationRequestDto request) {
     try {
       // ビジネスロジック違反の検証
       // 【セキュリティ設計】
       // エラーレスポンスにはrequestフィールドを含めない。
+      // 【注意】@Valid によるバリデーション（必須チェック等）は GlobalExceptionHandler で処理
 
-      // 【検証1】チェックイン日必須
-      if (request.getCheckInDate() == null) {
-        log.warn(messageSource.getMessage("log.reservation.violation.checkin.required",
-            new Object[]{request}, Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.date.checkInRequired", 422, "/api/reservations/pending");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証2】チェックアウト日必須
-      if (request.getCheckOutDate() == null) {
-        log.warn(messageSource.getMessage("log.reservation.violation.checkout.required",
-            new Object[]{request}, Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.date.checkOutRequired", 422, "/api/reservations/pending");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証3】チェックイン日の過去日検証
+      // 【検証1】チェックイン日の過去日検証
       LocalDate today = LocalDate.now();
       if (request.getCheckInDate().isBefore(today)) {
         log.warn(messageSource.getMessage("log.reservation.violation.checkin.past.date",
             new Object[]{request.getCheckInDate(), today, request}, Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkInPastDate", 422, "/api/reservations/pending");
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
-      // 【検証4】チェックアウト日の論理的整合性検証
+      // 【検証2】チェックアウト日の論理的整合性検証
       if (request.getCheckOutDate().isBefore(request.getCheckInDate())
           || request.getCheckOutDate().isEqual(request.getCheckInDate())) {
         log.warn(messageSource.getMessage("log.reservation.violation.checkout.before.checkin",
             new Object[]{request.getCheckInDate(), request.getCheckOutDate(), request},
             Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkOutBeforeCheckIn", 422, "/api/reservations/pending");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証5】部屋リストの空チェック
-      if (request.getRooms() == null || request.getRooms().isEmpty()) {
-        log.warn(messageSource.getMessage("log.reservation.violation.rooms.empty",
-            new Object[]{request}, Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("validation.rooms.required",
-            422, "/api/reservations/pending");
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
@@ -100,8 +79,10 @@ public class ReservationController {
       log.warn(messageSource.getMessage("log.reservation.violation.stock.shortage",
           new Object[]{e.getMessage(), request}, Locale.getDefault()));
 
+      // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+      // バックエンドのmessages.propertiesではない
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-          .create("validation.room.stockShortage", 422, "/api/reservations/pending");
+          .create("validation.api.businessRuleViolation", 422, "/api/reservations/pending");
       return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
 
     }
@@ -109,6 +90,8 @@ public class ReservationController {
       // その他ビジネスロジックエラー
       log.warn(messageSource.getMessage("log.reservation.violation.general",
           new Object[]{e.getMessage(), request}, Locale.getDefault()));
+      // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+      // バックエンドのmessages.propertiesではない
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto
           .create("validation.api.businessRuleViolation", 422, "/api/reservations/pending");
       return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);

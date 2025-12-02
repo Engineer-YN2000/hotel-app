@@ -7,6 +7,7 @@ import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
 import org.seasar.doma.boot.ConfigAutowireable;
 import org.seasar.doma.jdbc.Result;
+import org.seasar.doma.jdbc.SelectOptions;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -40,12 +41,19 @@ public interface ReservationDao {
    * reservation_detailsとreservationsを結合し、
    * 対象部屋タイプ・期間・予約ステータス（仮予約・本予約）で絞り込んで合計予約数を返します。
    *
+   * 【悲観的ロック（ダブルブッキング防止）】
+   * SelectOptions.get().forUpdate() を渡すことでSELECT FOR UPDATEが適用されます。
+   * 仮予約作成時には必ずforUpdateを使用してください。
+   * ロックはトランザクション終了時（コミット/ロールバック）に解放されます。
+   *
    * @param roomTypeId 部屋タイプID
+   * @param reservedStatuses 予約ステータスのリスト
    * @param checkInDate 宿泊開始日（検索範囲の下限）
    * @param checkOutDate 宿泊終了日（検索範囲の上限）
-   * @return 予約済み部屋数（該当がなければ0）
+   * @param options SelectOptions（forUpdate()で悲観的ロック指定可）
+   * @return 予約済み部屋数（該当がなければ０）
    */
   @Select
-  int countReservedRoom(Integer roomTypeId, List<Integer> reservedStatuses, LocalDate checkInDate,
-      LocalDate checkOutDate);
+  int countReservedRooms(Integer roomTypeId, List<Integer> reservedStatuses, LocalDate checkInDate,
+      LocalDate checkOutDate, SelectOptions options);
 }
