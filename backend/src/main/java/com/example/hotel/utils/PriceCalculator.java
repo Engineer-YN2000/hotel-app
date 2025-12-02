@@ -99,7 +99,7 @@ public class PriceCalculator {
    * 2. ホテル係数の計算（ホテルIDベースの一貫した価格体系）
    * 3. 定員係数の適用（宿泊人数に基づく効率性割引）
    * 4. 基本価格の算出（基準価格 × 定員係数 × 定員数 × ホテル係数）
-   * 5. 需要係数の計算（日付ベースの季節調整）
+   * 5. 需要係数の計算（日付ベースの需要変動調整）
    * 6. 最終価格の決定（基本価格 × 需要係数、最低価格保証付き）
    *
    * 【数学的背景】
@@ -164,7 +164,7 @@ public class PriceCalculator {
     int basePrice = (int) (properties.getBasePerPerson() * capacityMultiplier * capacity
         * hotelPriceMultiplier);
 
-    // 【Step6】需要変動係数の計算 - 日付ベースの季節調整
+    // 【Step6】需要変動係数の計算 - 日付ベースの需要変動調整
     // 年間通じて周期的に変動する需要パターンをシミュレート
     int dayOfYear = date.getDayOfYear();
     double demandFactor = properties.getDemandBaseFactor()

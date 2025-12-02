@@ -47,9 +47,9 @@ public interface ReservationDao {
    * ロックはトランザクション終了時（コミット/ロールバック）に解放されます。
    *
    * @param roomTypeId 部屋タイプID
-   * @param reservedStatuses 予約ステータスのリスト
-   * @param checkInDate 宿泊開始日（検索範囲の下限）
-   * @param checkOutDate 宿泊終了日（検索範囲の上限）
+   * @param reservedStatuses 集計対象とする予約ステータスのリスト（各値はReservationStatusで定義）
+   * @param checkInDate チェックイン日（宿泊開始日）
+   * @param checkOutDate チェックアウト日（宿泊終了日）
    * @param options SelectOptions（forUpdate()で悲観的ロック指定可）
    * @return 予約済み部屋数（該当がなければ０）
    */
