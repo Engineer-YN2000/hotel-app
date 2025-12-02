@@ -1,4 +1,4 @@
-package com.example.hotel.presentation.dto;
+package com.example.hotel.presentation.dto.top;
 
 import java.util.List;
 import lombok.Data;
@@ -6,7 +6,10 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 
 /**
- * 1ホテル分の検索結果DTO。ホテル基本情報と利用可能な部屋タイプ一覧を保持する。
+ * 1ホテル分の検索結果DTO
+ *
+ * ホテル基本情報と利用可能な部屋タイプ一覧を保持する。
+ * SearchResultDtoの子要素として使用される。
  */
 @Data
 @NoArgsConstructor

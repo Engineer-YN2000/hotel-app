@@ -2,6 +2,7 @@ package com.example.hotel.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.PropertySource;
 
 import java.util.List;
 
@@ -9,6 +10,7 @@ import java.util.List;
  * PriceCalculator用のプロパティ設定クラス
  */
 @Component
+@PropertySource("classpath:price-calculator.properties")
 @ConfigurationProperties(prefix = "price")
 public class PriceProperties {
 

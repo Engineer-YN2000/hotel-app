@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import './ServerError.css';
 
 /**
@@ -8,6 +9,16 @@ import './ServerError.css';
  */
 const ServerError = ({ onRetry }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  const handleBackToTop = () => {
+    if (onRetry) {
+      onRetry();
+    } else {
+      navigate('/');
+    }
+  };
+
   return (
     <div className="container">
       <header>
@@ -22,7 +33,11 @@ const ServerError = ({ onRetry }) => {
 
           <div className="button-container center">
             {/* P-900要件: 「トップへ戻る」ボタン [cite: 189] */}
-            <button type="button" className="btn btn-link" onClick={onRetry}>
+            <button
+              type="button"
+              className="btn btn-link"
+              onClick={handleBackToTop}
+            >
               {t('buttons.backToTop')}
             </button>
           </div>

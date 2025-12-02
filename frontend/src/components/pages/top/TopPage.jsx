@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import RefineForm from '../common/RefineForm'; // C-020
-import SearchResults from '../common/SearchResults'; // C-030
-import NoResults from '../common/NoResults'; // C-040
-import ServerError from '../common/ServerError'; // P-900
-import LanguageSwitcher from '../common/LanguageSwitcher';
-import { useI18nValidation } from '../../hooks/useI18nValidation';
+import {
+  RefineForm,
+  SearchResults,
+  NoResults,
+  ServerError,
+  LanguageSwitcher,
+} from '../../common';
+import { useI18nValidation } from '../../../hooks/useI18nValidation';
 import './TopPage.css';
 
 /**
@@ -24,7 +26,7 @@ const TopPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [searchResult, setSearchResult] = useState(null);
   const [originalSearchResult, setOriginalSearchResult] = useState(null); // 元の検索結果を保持
-  const [guestCount, setGuestCount] = useState(2); // 1-Dの検証用に保持（フォームのdefaultValueと統一）
+  const [guestCount, setGuestCount] = useState(1); // 1-Dの検証用に保持（フォームのdefaultValueと統一）
   const [selectedPrefectureId, setSelectedPrefectureId] = useState(null); // 絞り込み用
 
   // 日付バリデーション用の状態
@@ -146,6 +148,18 @@ const TopPage = () => {
     const newCheckOutDate = e.target.value;
     setCheckOutDate(newCheckOutDate);
     // バリデーションはuseEffectで自動実行されるため、ここでは削除
+  };
+
+  // 人数入力変更時の処理
+  const handleGuestCountChange = (e) => {
+    const value = e.target.value;
+    const num = parseInt(value, 10);
+    // 1以上99以下のみ反映
+    if (!isNaN(num) && num >= 1 && num <= 99) {
+      setGuestCount(num);
+    } else if (value === '') {
+      setGuestCount(''); // 空欄時は空文字
+    }
   };
 
   // リセット処理
@@ -278,7 +292,6 @@ const TopPage = () => {
       guestCount: e.target.elements['guests'].value,
     };
 
-    setGuestCount(Number(criteria.guestCount) || 1); // 1-D  のために保持（最小値1を保証）
     setSelectedPrefectureId(Number(criteria.prefectureId) || null); // 絞り込み用（無効な値はnullに）
 
     // URLSearchParams を使ってクエリ文字列を構築
@@ -288,7 +301,11 @@ const TopPage = () => {
       const response = await fetch(`/api/search?${params.toString()}`);
       if (!response.ok) {
         // 500エラー (P-900) [cite: 129, 130]
-        throw new Error(`サーバーエラー: ${response.status}`);
+        throw new Error(
+          t('messages.error.serverErrorWithStatus', {
+            status: response.status,
+          }),
+        );
       }
 
       const result = await response.json();
@@ -431,10 +448,11 @@ const TopPage = () => {
                 type="number"
                 id="guests"
                 name="guests"
-                defaultValue="2"
+                value={guestCount}
                 min="1"
                 max="99"
                 required
+                onChange={handleGuestCountChange}
               />
               {/* セキュリティ: HTML min/max回避対策のエラー表示 */}
               {getError('guestCount') && (

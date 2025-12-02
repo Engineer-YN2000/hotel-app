@@ -23,6 +23,13 @@ public class RoomStockInfo {
   private final Integer roomTypeId;
 
   /**
+   * ホテルID (room_types.hotel_id)
+   * 価格計算時のホテル係数算出に使用
+   */
+  @Column(name = "hotel_id")
+  private final Integer hotelId;
+
+  /**
    * 部屋タイプ名 (room_types.room_type_name)
    */
   @Column(name = "room_type_name")

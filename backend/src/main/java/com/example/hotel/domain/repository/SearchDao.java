@@ -39,5 +39,5 @@ public interface SearchDao {
    */
   @Select
   List<AvailableRoomInfo> searchAvailableRooms(Integer prefectureId, LocalDate checkInDate,
-      LocalDate checkOutDate, java.util.List<Integer> reservedStatuses, SelectOptions options);
+      LocalDate checkOutDate, List<Integer> reservedStatuses, SelectOptions options);
 }

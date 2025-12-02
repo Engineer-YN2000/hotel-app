@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import './SearchResults.css';
 
 /**
@@ -14,6 +15,7 @@ const SearchResults = ({
   checkOutDate,
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { hotels } = searchResult;
   // { hotelId: { roomTypeId: count, ... }, ... }
   const [selectedRooms, setSelectedRooms] = useState({});
@@ -129,29 +131,62 @@ const SearchResults = ({
     }));
   };
 
-  const handleReservation = (hotelId) => {
+  const handleReservation = async (hotelId) => {
     // バリデーションエラーチェック
     if (validation.hasAnyValidationError) {
-      // 【セキュリティ】ビジネスロジックの詳細をコンソールに出力しない
       return;
     }
-
     const roomsToReserve = selectedRooms[hotelId];
-
-    // 部屋が選択されているかチェック
     const hasSelectedRooms =
       roomsToReserve &&
       Object.values(roomsToReserve).some((count) => count > 0);
-
     if (!hasSelectedRooms) {
-      // 【セキュリティ】部屋選択状態の詳細をコンソールに出力しない
       return;
     }
 
-    // 【セキュリティ】予約処理の詳細をコンソールに出力しない
-    // 予約処理を続行
-    // 次のステップ: 予約フォームへの遷移処理を実装
-    // TODO: P-020 [cite: 83] への遷移 (flowchart_top_to_reservation.dot  の `validation_stock`  実行)
+    // 対象ホテルの部屋情報を取得
+    const hotel = hotels.find((h) => h.hotelId === hotelId);
+    if (!hotel) {
+      navigate('/server-error');
+      return;
+    }
+
+    // バックエンドDTOの形式に変換: [{ roomTypeId, roomCount, price }, ...]
+    const roomsPayload = Object.entries(roomsToReserve)
+      .filter(([, count]) => count > 0)
+      .map(([roomTypeIdStr, count]) => {
+        const roomTypeId = parseInt(roomTypeIdStr, 10);
+        const roomType = hotel.roomTypes.find(
+          (rt) => rt.roomTypeId === roomTypeId,
+        );
+        return {
+          roomTypeId,
+          roomCount: count,
+          price: roomType ? roomType.price : 0,
+        };
+      });
+
+    // 予約API呼び出し
+    try {
+      const payload = {
+        checkInDate,
+        checkOutDate,
+        rooms: roomsPayload,
+      };
+      const response = await fetch('/api/reservations/pending', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        throw new Error('Reservation API error');
+      }
+      // 正常時は仮ページへ遷移
+      navigate('/reservation-next');
+    } catch (error) {
+      // エラー時はServerErrorページへ遷移
+      navigate('/server-error');
+    }
   };
 
   return (

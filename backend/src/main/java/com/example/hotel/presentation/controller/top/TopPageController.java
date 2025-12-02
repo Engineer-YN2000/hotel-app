@@ -1,13 +1,14 @@
-package com.example.hotel.top;
+package com.example.hotel.presentation.controller.top;
 
 import com.example.hotel.domain.service.CacheService;
 import com.example.hotel.domain.service.SearchService;
 import com.example.hotel.domain.repository.AreaDetailDao;
 import com.example.hotel.domain.model.AreaDetail;
-import com.example.hotel.presentation.dto.SearchCriteriaDto;
-import com.example.hotel.presentation.dto.SearchResultDto;
-import com.example.hotel.presentation.dto.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.top.SearchCriteriaDto;
+import com.example.hotel.presentation.dto.top.SearchResultDto;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
@@ -35,13 +36,9 @@ public class TopPageController {
   private static final int RECOMMENDED_CHECK_IN_DAYS_FROM_TODAY = 1;
   private static final int RECOMMENDED_CHECK_OUT_DAYS_FROM_TODAY = 2;
 
-  // バリデーション定数
-  private static final int MIN_GUEST_COUNT = 1;
-  private static final int MAX_GUEST_COUNT = 99;
-  // 都道府県ID: データベースのAUTO_INCREMENTにより1(北海道)～47(沖縄県)の範囲で設定される
-  // ID=0は存在しないため、MIN_PREFECTURE_ID=1で正しく境界値チェックが行われる
+  // バリデーション定数（地域詳細取得用）
   private static final int MIN_PREFECTURE_ID = 1;
-  private static final int MAX_PREFECTURE_ID = 47; // 沖縄県が最大ID
+  private static final int MAX_PREFECTURE_ID = 47;
 
   private final CacheService cacheService;
   private final SearchService searchService;
@@ -90,7 +87,7 @@ public class TopPageController {
    *         ResponseEntity<?>（柔軟な型対応）
    */
   @GetMapping("/api/search")
-  public ResponseEntity<?> search(SearchCriteriaDto criteria) {
+  public ResponseEntity<?> search(@Valid SearchCriteriaDto criteria) {
     try {
       // ビジネスロジック違反の検証（システムの整合性を脅かす不正な値）
       //
@@ -100,73 +97,33 @@ public class TopPageController {
       // 2. エラーレスポンスを通じた情報収集攻撃の無効化
       // 3. パラメータ形式や受入可能値の推測を困難にする
       // デバッグに必要な詳細情報はサーバーログに記録し、セキュリティと開発効率を両立する。
+      //
+      // 【注意】@Valid によるバリデーション（必須チェック、範囲チェック等）は GlobalExceptionHandler で処理
 
-      // 【検証1】チェックイン日必須パラメータの検証
-      // 必須項目であるチェックイン日がnullの場合はエラーレスポンスを返却
-      if (criteria.getCheckInDate() == null) {
-        log.warn(messageSource.getMessage("log.business.rule.violation.checkin.required",
-            new Object[]{criteria}, Locale.getDefault()));
-        // 【API設計改善】成功レスポンスとエラーレスポンスを明確に分離
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.date.checkInRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証2】チェックアウト日必須パラメータの検証
-      // 必須項目であるチェックアウト日がnullの場合はエラーレスポンスを返却
-      if (criteria.getCheckOutDate() == null) {
-        log.warn(messageSource.getMessage("log.business.rule.violation.checkout.required",
-            new Object[]{criteria}, Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.date.checkOutRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証3】チェックイン日の過去日検証
+      // 【検証1】チェックイン日の過去日検証
       // 本日より前の日付での予約は受け付けない（ビジネスルール）
       LocalDate today = LocalDate.now();
       if (criteria.getCheckInDate().isBefore(today)) {
         log.warn(messageSource.getMessage("log.business.rule.violation.checkin.past.date",
             new Object[]{criteria.getCheckInDate(), today, criteria}, Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkInPastDate", 422, "/api/search");
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
-      // 【検証4】チェックアウト日の論理的整合性検証
+      // 【検証2】チェックアウト日の論理的整合性検証
       // チェックアウト日がチェックイン日以前または同日の場合はエラー（最低1泊必要）
       if (criteria.getCheckOutDate().isBefore(criteria.getCheckInDate())
           || criteria.getCheckOutDate().isEqual(criteria.getCheckInDate())) {
         log.warn(messageSource.getMessage("log.business.rule.violation.checkout.before.checkin",
             new Object[]{criteria.getCheckInDate(), criteria.getCheckOutDate(), criteria},
             Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
         ApiErrorResponseDto errorResponse = ApiErrorResponseDto
             .create("validation.date.checkOutBeforeCheckIn", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証5】都道府県ID範囲検証
-      // 都道府県IDが1-47の有効範囲外またはnullの場合はエラー（データ整合性保護）
-      if (criteria.getPrefectureId() == null || criteria.getPrefectureId() < MIN_PREFECTURE_ID
-          || criteria.getPrefectureId() > MAX_PREFECTURE_ID) {
-        log.warn(messageSource.getMessage(
-            "log.business.rule.violation.invalid.prefecture.id", new Object[]{
-                criteria.getPrefectureId(), MIN_PREFECTURE_ID, MAX_PREFECTURE_ID, criteria},
-            Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.form.prefectureRequired", 422, "/api/search");
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
-      }
-
-      // 【検証6】宿泊人数範囲検証
-      // 宿泊人数が1-99人の有効範囲外またはnullの場合はエラー（システム制約）
-      if (criteria.getGuestCount() == null || criteria.getGuestCount() < MIN_GUEST_COUNT
-          || criteria.getGuestCount() > MAX_GUEST_COUNT) {
-        log.warn(messageSource.getMessage("log.business.rule.violation.invalid.guest.count",
-            new Object[]{criteria.getGuestCount(), MIN_GUEST_COUNT, MAX_GUEST_COUNT, criteria},
-            Locale.getDefault()));
-        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
-            .create("validation.guestCount.range", 422, "/api/search");
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
       }
 
@@ -184,6 +141,8 @@ public class TopPageController {
       // 数値変換エラー（不正なパラメータ形式）
       log.warn(messageSource.getMessage("log.number.format.error",
           new Object[]{e.getMessage(), criteria}, Locale.getDefault()));
+      // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+      // バックエンドのmessages.propertiesではない
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto
           .create("validation.api.invalidRequest", 422, "/api/search");
       return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
@@ -198,6 +157,8 @@ public class TopPageController {
           new Object[]{e.getMessage(), criteria}, Locale.getDefault()));
 
       // 【API設計改善】専用のエラーレスポンスDTOを使用
+      // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+      // バックエンドのmessages.propertiesではない
       String messageKey = "PRICE_CALCULATION_ERROR".equals(e.getMessage())
           ? "validation.api.serverError"
           : "validation.api.businessRuleViolation";

@@ -14,12 +14,12 @@ import lombok.extern.slf4j.Slf4j;
  *
  * ホテルごとの料金体系とその日の需要定数を考慮したダイナミックプライシングを実装
  *
- * 【重要】価格計算の責務範囲:
+ * 重要: 価格計算の責務範囲:
  * - このクラスは「1泊あたりの部屋料金」のみを計算
  * - 宿泊日数による乗算は呼び出し側（DTOやサービス層）で実行
  * - 複数泊の総額計算は RoomTypeResultDto.calculateTotalPrice() で実装
  *
- * 【注意】
+ * 注意:
  * このクラスは演習用のモッククラスであり、実際の運用環境ではプロパティファイルやデータベースから設定を取得する設計が推奨されます。
  */
 @Component
@@ -99,7 +99,7 @@ public class PriceCalculator {
    * 2. ホテル係数の計算（ホテルIDベースの一貫した価格体系）
    * 3. 定員係数の適用（宿泊人数に基づく効率性割引）
    * 4. 基本価格の算出（基準価格 × 定員係数 × 定員数 × ホテル係数）
-   * 5. 需要係数の計算（日付ベースの季節変動）
+   * 5. 需要係数の計算（日付ベースの需要変動調整）
    * 6. 最終価格の決定（基本価格 × 需要係数、最低価格保証付き）
    *
    * 【数学的背景】
@@ -164,7 +164,7 @@ public class PriceCalculator {
     int basePrice = (int) (properties.getBasePerPerson() * capacityMultiplier * capacity
         * hotelPriceMultiplier);
 
-    // 【Step6】需要変動係数の計算 - 日付ベースの季節調整
+    // 【Step6】需要変動係数の計算 - 日付ベースの需要変動調整
     // 年間通じて周期的に変動する需要パターンをシミュレート
     int dayOfYear = date.getDayOfYear();
     double demandFactor = properties.getDemandBaseFactor()

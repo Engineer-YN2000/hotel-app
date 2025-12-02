@@ -1,4 +1,4 @@
-package com.example.hotel.presentation.dto;
+package com.example.hotel.presentation.dto.top;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -8,7 +8,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 空室検索結果のルーDTO（成功レスポンス専用）
+ * 空室検索結果のルートDTO（成功レスポンス専用）
  *
  * 成功時の検索結果のみを表現し、エラー情報は含まない。
  * REST APIの設計原則に従い、成功とエラーのレスポンス構造を明確に分離。
