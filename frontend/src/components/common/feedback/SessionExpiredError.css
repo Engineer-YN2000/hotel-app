@@ -1,0 +1,19 @@
+.timeout-error-page-message {
+  text-align: center;
+  padding: 40px 20px;
+  background-color: #fffaf0;
+  border: 1px solid #ffdb9d;
+  border-radius: 8px;
+}
+
+.timeout-error-page-message h2 {
+  color: #ff9900;
+  border: none;
+  margin-top: 0;
+  font-size: 1.8em;
+}
+
+.timeout-error-page-message p {
+  font-size: 1.1em;
+  color: #333;
+}

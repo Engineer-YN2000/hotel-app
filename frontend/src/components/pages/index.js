@@ -4,4 +4,4 @@
 export { TopPage } from './top';
 
 // reservation - 予約関連
-export { ReservationNext } from './reservation';
+export { ReservationInputPage, ReservationConfirmPage } from './reservation';

@@ -1,7 +1,15 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { I18nProvider, ServerError } from './components/common';
-import { TopPage, ReservationNext } from './components/pages';
+import {
+  I18nProvider,
+  ServerError,
+  SessionExpiredError,
+} from './components/common';
+import {
+  TopPage,
+  ReservationInputPage,
+  ReservationConfirmPage,
+} from './components/pages';
 
 function App() {
   return (
@@ -11,8 +19,19 @@ function App() {
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<TopPage />} />
-              <Route path="/reservation-next" element={<ReservationNext />} />
+              <Route
+                path="/reservation/:reservationId"
+                element={<ReservationInputPage />}
+              />
+              <Route
+                path="/reservation/:reservationId/confirm"
+                element={<ReservationConfirmPage />}
+              />
               <Route path="/server-error" element={<ServerError />} />
+              <Route
+                path="/session-expired"
+                element={<SessionExpiredError />}
+              />
             </Routes>
           </BrowserRouter>
         </I18nProvider>

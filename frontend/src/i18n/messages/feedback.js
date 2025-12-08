@@ -1,6 +1,6 @@
 /**
  * フィードバックコンポーネント用メッセージ
- * 使用コンポーネント: ServerError, NoResults
+ * 使用コンポーネント: ServerError, NoResults, SessionExpiredError
  */
 export const feedbackMessages = {
   ja: {
@@ -17,6 +17,11 @@ export const feedbackMessages = {
           '時間をおいて再度お試しいただくか、トップページへお戻りください。',
         serverErrorWithStatus: 'サーバーエラー: {{status}}',
       },
+      sessionExpired: {
+        title: '予約有効時間切れ',
+        timeoutMessage: 'ご予約手続きの有効時間（10分）が経過しました。',
+        retryMessage: 'お手数ですが、最初からやり直してください。',
+      },
     },
   },
 
@@ -32,6 +37,11 @@ export const feedbackMessages = {
         unexpectedError: 'An unexpected error occurred on the server side.',
         retryOrBackToTop: 'Please try again later or return to the top page.',
         serverErrorWithStatus: 'Server error: {{status}}',
+      },
+      sessionExpired: {
+        title: 'Reservation Session Expired',
+        timeoutMessage: 'The reservation session (10 minutes) has expired.',
+        retryMessage: 'Please start over from the beginning.',
       },
     },
   },

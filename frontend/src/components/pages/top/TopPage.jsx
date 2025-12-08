@@ -28,6 +28,8 @@ const TopPage = () => {
   const [originalSearchResult, setOriginalSearchResult] = useState(null); // 元の検索結果を保持
   const [guestCount, setGuestCount] = useState(1); // 1-Dの検証用に保持（フォームのdefaultValueと統一）
   const [selectedPrefectureId, setSelectedPrefectureId] = useState(null); // 絞り込み用
+  const [updatedPrices, setUpdatedPrices] = useState(null); // 価格再計算結果を保持
+  const [isPriceLoading, setIsPriceLoading] = useState(false); // 価格再計算中フラグ
 
   // 日付バリデーション用の状態
   const [checkInDate, setCheckInDate] = useState('');
@@ -111,6 +113,81 @@ const TopPage = () => {
   }, [clearError]);
 
   /**
+   * 価格再計算API呼び出し
+   *
+   * 【処理目的】
+   * 検索結果表示中に日付が変更された場合、新しい日付に基づいて
+   * 各部屋タイプの価格を再計算する。
+   *
+   * 【セキュリティ設計】
+   * - サーバー側で価格計算を行い、係数等の内部ロジックを隠蔽
+   * - クライアントには計算結果のみを提供
+   */
+  const recalculatePrices = async (newCheckInDate, newCheckOutDate) => {
+    // 検索結果がない場合は再計算不要
+    if (
+      !searchResult ||
+      !searchResult.hotels ||
+      searchResult.hotels.length === 0
+    ) {
+      return;
+    }
+
+    // 日付バリデーション
+    if (!newCheckInDate || !newCheckOutDate) {
+      return;
+    }
+
+    // バリデーションエラーがある場合はスキップ
+    const dateError = validateDates(
+      newCheckInDate,
+      newCheckOutDate,
+      initialCheckInDate,
+      initialCheckOutDate,
+    );
+    if (dateError) {
+      return;
+    }
+
+    setIsPriceLoading(true);
+
+    // 全ホテルの全部屋タイプをリクエスト用に変換
+    const rooms = searchResult.hotels.flatMap((hotel) =>
+      hotel.roomTypes.map((roomType) => ({
+        roomTypeId: roomType.roomTypeId,
+        hotelId: hotel.hotelId,
+      })),
+    );
+
+    try {
+      const response = await fetch('/api/price/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          checkInDate: newCheckInDate,
+          checkOutDate: newCheckOutDate,
+          rooms,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // 価格をマップ形式に変換: { "hotelId-roomTypeId": price }
+        const priceMap = {};
+        data.rooms.forEach((room) => {
+          priceMap[`${room.hotelId}-${room.roomTypeId}`] = room.price;
+        });
+        setUpdatedPrices(priceMap);
+      }
+    } catch (error) {
+      // 【セキュリティ】エラー詳細をコンソールに出力しない
+      // 価格再計算失敗時は元の価格を維持（UX考慮）
+    } finally {
+      setIsPriceLoading(false);
+    }
+  };
+
+  /**
    * 日付連動処理 - UX最適化の実装パターン
    *
    * 【処理目的】
@@ -134,11 +211,13 @@ const TopPage = () => {
 
     // 【日付連動ロジック】チェックイン日+1日をチェックアウト日に自動設定
     if (newCheckInDate) {
-      const checkInDate = new Date(newCheckInDate);
-      const nextDay = new Date(checkInDate);
-      nextDay.setDate(checkInDate.getDate() + 1); // 月跨ぎも自動処理
+      const checkIn = new Date(newCheckInDate);
+      const nextDay = new Date(checkIn);
+      nextDay.setDate(checkIn.getDate() + 1); // 月跨ぎも自動処理
       const newCheckOutDate = nextDay.toISOString().split('T')[0];
       setCheckOutDate(newCheckOutDate);
+      // 【価格再計算】検索結果表示中は新しい日付で価格を再計算
+      recalculatePrices(newCheckInDate, newCheckOutDate);
     }
     // 【設計判断】バリデーションはuseEffectで集約管理（関心の分離）
   };
@@ -147,6 +226,8 @@ const TopPage = () => {
   const handleCheckOutChange = (e) => {
     const newCheckOutDate = e.target.value;
     setCheckOutDate(newCheckOutDate);
+    // 【価格再計算】検索結果表示中は新しい日付で価格を再計算
+    recalculatePrices(checkInDate, newCheckOutDate);
     // バリデーションはuseEffectで自動実行されるため、ここでは削除
   };
 
@@ -280,6 +361,7 @@ const TopPage = () => {
     setShowRefineForm(false); // 検索中は一旦隠す
     setIsServerError(false);
     setOriginalSearchResult(null); // 前回の元検索結果をクリア
+    setUpdatedPrices(null); // 前回の再計算価格をクリア
     clearError('search'); // 検索開始時に前回のAPIエラーをクリア
 
     // flowchart_top_page.dot  の「DB検索」 (API呼び出し)
@@ -505,6 +587,8 @@ const TopPage = () => {
             guestCount={guestCount}
             checkInDate={checkInDate}
             checkOutDate={checkOutDate}
+            updatedPrices={updatedPrices}
+            isPriceLoading={isPriceLoading}
           />
         )}
 

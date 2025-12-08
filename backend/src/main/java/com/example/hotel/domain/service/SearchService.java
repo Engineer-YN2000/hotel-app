@@ -95,7 +95,7 @@ public class SearchService {
     }
 
     List<HotelResultDto> hotelResults = calculateHotelResultRooms(dbRooms, stockCache,
-        criteria.getCheckInDate());
+        criteria.getCheckInDate(), criteria.getCheckOutDate());
 
     if (hotelResults.isEmpty()) {
       log.info(messageSource.getMessage("log.service.search.result.empty",
@@ -127,10 +127,12 @@ public class SearchService {
    * @param dbRooms DAOから取得した部屋情報一覧
    * @param stockCache 部屋タイプ別在庫キャッシュ
    * @param checkInDate チェックイン日（価格計算用）
+   * @param checkOutDate チェックアウト日（価格計算用）
    * @return ホテル結果DTO一覧
    */
   private List<HotelResultDto> calculateHotelResultRooms(List<AvailableRoomInfo> dbRooms,
-      Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate) {
+      Map<Integer, RoomStockInfo> stockCache, java.time.LocalDate checkInDate,
+      java.time.LocalDate checkOutDate) {
 
     Map<Integer, RoomTypeResultDto> roomTypeResults = dbRooms.stream()
         .filter(dbRoom -> stockCache.containsKey(dbRoom.getRoomTypeId())).map(dbRoom -> {
@@ -139,8 +141,10 @@ public class SearchService {
           int reservedCount = dbRoom.getReservedCount();
           int availableStock = totalStock - reservedCount;
 
+          // チェックイン日〜チェックアウト日の範囲で価格をループ計算し、合算した総額を設定
           return new RoomTypeResultDto(dbRoom.getRoomTypeId(), dbRoom.getRoomTypeName(),
-              cacheInfo.getRoomCapacity(), availableStock, dbRoom.getHotelId(), checkInDate);
+              cacheInfo.getRoomCapacity(), availableStock, dbRoom.getHotelId(), checkInDate,
+              checkOutDate);
         }).filter(roomDto -> roomDto.getAvailableStock() > 0)
         .collect(Collectors.toMap(RoomTypeResultDto::getRoomTypeId, dto -> dto));
 

@@ -9,13 +9,29 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.hotel.domain.exception.ReservationExpiredException;
 import com.example.hotel.domain.service.ReservationService;
 import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.reservation.CustomerRequestDto;
 import com.example.hotel.presentation.dto.reservation.ReservationRequestDto;
+import com.example.hotel.presentation.dto.reservation.ReservationResponseDto;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 予約管理REST APIコントローラ
+ *
+ * 【エンドポイント】
+ * - POST /api/reservations/pending : 仮予約（在庫ロック）作成
+ * - GET /api/reservations/{id} : 予約情報取得
+ * - POST /api/reservations/{id}/customer-info : 顧客情報登録
+ * - POST /api/reservations/{id}/cancel : 予約キャンセル
+ *
+ * 【セキュリティ設計】
+ * - エラーレスポンスにはrequestフィールドを含めない
+ * - 詳細エラー情報はログにのみ出力
+ */
 @RestController
 @RequestMapping("/api/reservations")
 @Slf4j
@@ -29,6 +45,17 @@ public class ReservationController {
     this.messageSource = messageSource;
   }
 
+  /**
+   * 仮予約（在庫ロック）を作成するAPI
+   *
+   * 【ビジネスロジック検証】
+   * 1. チェックイン日の過去日検証
+   * 2. チェックアウト日の論理的整合性検証
+   *
+   * @param request 仮予約リクエストDTO
+   * @return 成功時: 予約IDを含むJSONレスポンス
+   *         失敗時: エラーレスポンスDTO (422 Unprocessable Entity)
+   */
   @PostMapping("/pending")
   public ResponseEntity<?> createPending(@Valid @RequestBody ReservationRequestDto request) {
     try {
@@ -102,7 +129,168 @@ public class ReservationController {
       log.error(
           messageSource.getMessage("log.unexpected.error.reservation", null, Locale.getDefault()),
           e);
-      return ResponseEntity.internalServerError().body(Map.of("error", "SERVER_ERROR"));
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /**
+   * 予約情報を取得するAPI
+   *
+   * 指定された予約IDに紐づく予約情報（ホテル名、部屋タイプ、
+   * 宿泊日程、合計料金等）を取得する。
+   *
+   * 【エラーハンドリング設計】
+   * 予約が存在しない場合を含む全てのエラーは500を返却し、
+   * フロントエンドでServerErrorページを表示する。
+   * （422はインラインバリデーションエラー専用）
+   *
+   * @param id 予約ID
+   * @return 成功時: 予約情報レスポンスDTO (200 OK)
+   *         エラー時: 500 Internal Server Error
+   */
+  @GetMapping("/{id}")
+  public ResponseEntity<ReservationResponseDto> getReservation(@PathVariable Integer id) {
+    try {
+      ReservationResponseDto response = reservationService.getReservation(id);
+      return ResponseEntity.ok(response);
+    }
+    catch (IllegalArgumentException e) {
+      // 予約が見つからない場合（ビジネスエラー → サーバーエラーとして処理）
+      log.warn(messageSource.getMessage("log.reservation.notfound",
+          new Object[]{id, e.getMessage()}, Locale.getDefault()));
+      return ResponseEntity.internalServerError().build();
+    }
+    catch (Exception e) {
+      // サーバーエラー
+      log.error(
+          messageSource.getMessage("log.unexpected.error.reservation", null, Locale.getDefault()),
+          e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /** 電話番号の正規表現パターン（国際電話対応: +付き数字列） */
+  private static final String PHONE_NUMBER_PATTERN = "^(\\+)?[0-9]+$";
+
+  /** Eメールアドレスの正規表現パターン */
+  private static final String EMAIL_PATTERN = "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$";
+
+  /**
+   * 仮予約に顧客情報を登録・更新（アップサート）するAPI
+   *
+   * 【ビジネスロジック検証】
+   * 1. 電話番号のフォーマット検証（入力がある場合）
+   * 2. Eメールアドレスのフォーマット検証（入力がある場合）
+   *
+   * @param id 予約ID
+   * @param request 顧客情報リクエストDTO
+   * @return 成功時: 200 OK
+   *         バリデーションエラー時: 422 Unprocessable Entity
+   *         サーバーエラー時: 500 Internal Server Error
+   */
+  @PostMapping("/{id}/customer-info")
+  public ResponseEntity<?> upsertCustomerInfo(@PathVariable Integer id,
+      @Valid @RequestBody CustomerRequestDto request) {
+    try {
+      // 【検証1】電話番号のフォーマット検証（入力がある場合のみ）
+      if (!isBlank(request.getPhoneNumber())
+          && !request.getPhoneNumber().matches(PHONE_NUMBER_PATTERN)) {
+        log.warn(messageSource.getMessage("log.customer.violation.phone.format",
+            new Object[]{request.getPhoneNumber(), id}, Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
+        ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create(
+            "validation.customer.phoneNumber.format", 422,
+            "/api/reservations/" + id + "/customer-info");
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+      }
+
+      // 【検証2】Eメールアドレスのフォーマット検証（入力がある場合のみ）
+      if (!isBlank(request.getEmailAddress())
+          && !request.getEmailAddress().matches(EMAIL_PATTERN)) {
+        log.warn(messageSource.getMessage("log.customer.violation.email.format",
+            new Object[]{request.getEmailAddress(), id}, Locale.getDefault()));
+        // 【注意】messageKeyはフロントエンドi18n用キー（frontend/src/i18n/messages/）
+        // バックエンドのmessages.propertiesではない
+        ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create(
+            "validation.customer.emailAddress.format", 422,
+            "/api/reservations/" + id + "/customer-info");
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+      }
+
+      log.info(messageSource.getMessage("log.customer.request.received", new Object[]{id, request},
+          Locale.getDefault()));
+
+      reservationService.upsertCustomerInfo(id, request);
+
+      log.info(
+          messageSource.getMessage("log.customer.success", new Object[]{id}, Locale.getDefault()));
+
+      // 成功時: 200 OK
+      return ResponseEntity.ok().build();
+
+    }
+    catch (ReservationExpiredException e) {
+      // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる
+      log.warn(messageSource.getMessage("log.customer.violation.expired",
+          new Object[]{e.getReservationId(), e.getMessage()}, Locale.getDefault()));
+      // フロントエンドで期限切れを識別できるようにerrorコードを返却
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("RESERVATION_EXPIRED", 410,
+          "/api/reservations/" + id + "/customer-info");
+      return ResponseEntity.status(HttpStatus.GONE).body(errorResponse);
+    }
+    catch (IllegalStateException e) {
+      // 更新失敗（期限切れ以外のビジネスエラー）
+      log.warn(messageSource.getMessage("log.customer.violation.state",
+          new Object[]{e.getMessage(), id}, Locale.getDefault()));
+      return ResponseEntity.internalServerError().build();
+    }
+    catch (Exception e) {
+      // サーバーエラー
+      log.error(
+          messageSource.getMessage("log.unexpected.error.reservation", null, Locale.getDefault()),
+          e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /**
+   * 文字列が空かどうかを判定する
+   *
+   * @param value 検査対象の文字列
+   * @return nullまたは空文字列の場合true
+   */
+  private boolean isBlank(String value) {
+    return value == null || value.trim().isEmpty();
+  }
+
+  /**
+   * 予約をキャンセルするAPI
+   *
+   * 指定された予約IDの予約ステータスをCANCELLED（30）に更新します。
+   * キャンセルボタン押下時にフロントエンドから呼び出されます。
+   *
+   * @param id 予約ID
+   * @return 成功時: 200 OK
+   *         エラー時: 500 Internal Server Error
+   */
+  @PostMapping("/{id}/cancel")
+  public ResponseEntity<?> cancelReservation(@PathVariable Integer id) {
+    try {
+      log.info("Cancel reservation request received: id={}", id);
+      reservationService.cancelReservation(id);
+      log.info("Reservation cancelled successfully: id={}", id);
+      return ResponseEntity.ok().build();
+    }
+    catch (IllegalArgumentException e) {
+      // 予約が見つからない場合
+      log.warn("Reservation not found for cancel: id={}, message={}", id, e.getMessage());
+      return ResponseEntity.notFound().build();
+    }
+    catch (Exception e) {
+      // サーバーエラー
+      log.error("Unexpected error during reservation cancel: id={}", id, e);
+      return ResponseEntity.internalServerError().build();
     }
   }
 }
