@@ -1,6 +1,6 @@
 /**
  * 予約ページ用メッセージ
- * 使用コンポーネント: ReservationInputPage, ReservationSummary, CustomerInfoForm
+ * 使用コンポーネント: ReservationInputPage, ReservationSummary, CustomerInputForm
  */
 export const reservationMessages = {
   ja: {
@@ -49,6 +49,7 @@ export const reservationMessages = {
         phoneNumber: '電話番号',
         arriveAt: '到着予定時刻',
         arriveAtPlaceholder: '選択してください',
+        arriveAtHint: '※ 未選択の場合は15:00が適用されます',
         cancelButton: 'キャンセル',
         cancellingButton: 'キャンセル中...',
         submitButton: '確認画面へ',
@@ -72,7 +73,7 @@ export const reservationMessages = {
     reservation: {
       // P-020 Reservation Input Page
       inputPage: {
-        title: 'Reservation Details',
+        title: 'Reservation Details Input',
         loading: 'Loading...',
         notFound: 'Reservation not found.',
         processingComplete: 'Customer info registered',
@@ -117,6 +118,7 @@ export const reservationMessages = {
         phoneNumber: 'Phone Number',
         arriveAt: 'Estimated Arrival Time',
         arriveAtPlaceholder: 'Please select',
+        arriveAtHint: '* If not selected, 15:00 will be applied',
         cancelButton: 'Cancel',
         cancellingButton: 'Cancelling...',
         submitButton: 'Proceed to Confirmation',

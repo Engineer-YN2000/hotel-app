@@ -6,7 +6,7 @@ import './SessionExpiredError.css';
 /**
  * P-910 予約有効時間切れ画面
  * 仮予約の有効期限が経過した場合に表示する。
- * トップページへ戻る際に予約ステータスをCANCELLEDに更新する。
+ * トップページへ戻る際に予約ステータスをEXPIRED（40）に更新する。
  */
 const SessionExpiredError = () => {
   const { t } = useTranslation();
@@ -15,15 +15,19 @@ const SessionExpiredError = () => {
   const reservationId = location.state?.reservationId;
 
   const handleBackToTop = async () => {
-    // 予約IDがある場合はキャンセルAPIを呼び出してステータスをCANCELLEDに更新
+    // 予約IDがある場合はexpire APIを呼び出してステータスをEXPIREDに更新
     if (reservationId) {
       try {
-        await fetch(`/api/reservations/${reservationId}/cancel`, {
+        const res = await fetch(`/api/reservations/${reservationId}/expire`, {
           method: 'POST',
         });
+        if (!res.ok) {
+          // エラー時もログのみ（ベストエフォート処理、バッチが最終保証）
+          console.error('Failed to expire reservation: status=', res.status);
+        }
       } catch (e) {
-        // キャンセル失敗してもトップページへは遷移する
-        console.error('Failed to cancel reservation:', e);
+        // ネットワークエラー等 - ログのみ（ベストエフォート処理）
+        console.error('Network error while expiring reservation:', e);
       }
     }
     navigate('/');

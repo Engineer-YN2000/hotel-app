@@ -1,6 +1,6 @@
 import React, { useReducer } from 'react';
 import { useTranslation } from 'react-i18next';
-import './CustomerInfoForm.css';
+import './CustomerInputForm.css';
 
 /**
  * C-022 顧客情報入力フォームコンポーネント
@@ -17,8 +17,8 @@ import './CustomerInfoForm.css';
  */
 
 const initialState = {
-  givenName: '',    // 名（First Name）- DB: reserver_first_name
-  familyName: '',   // 姓（Last Name）- DB: reserver_last_name
+  givenName: '', // 名（First Name）- DB: reserver_first_name
+  familyName: '', // 姓（Last Name）- DB: reserver_last_name
   emailAddress: '',
   phoneNumber: '',
   arriveAt: '',
@@ -40,7 +40,12 @@ const formReducer = (state, action) => {
   }
 };
 
-const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) => {
+const CustomerInputForm = ({
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  isCancelling,
+}) => {
   const { t } = useTranslation();
   const [state, dispatch] = useReducer(formReducer, initialState);
 
@@ -71,10 +76,7 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
       errors.phoneNumber = t('validation.customer.phoneInvalid');
     }
 
-    // 論理的必須 (DBはNULL可)
-    if (!state.arriveAt) {
-      errors.arriveAt = t('validation.customer.required');
-    }
+    // 到着時刻は任意（未入力時はバックエンドでデフォルト值15:00が適用される）
 
     return errors;
   };
@@ -90,12 +92,13 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
     // バックエンドDTO形式に変換して送信
     // reserverFirstName = givenName（名）, reserverLastName = familyName（姓）
     // 空文字列はnullに変換（DBのNULL許容カラム対応）
+    // arriveAtが未選択の場合はnullを送信し、バックエンドでデフォルト值が適用される
     onSubmit({
       reserverFirstName: state.givenName,
       reserverLastName: state.familyName,
       emailAddress: state.emailAddress || null,
       phoneNumber: state.phoneNumber || null,
-      arriveAt: state.arriveAt,
+      arriveAt: state.arriveAt || null,
     });
   };
 
@@ -107,7 +110,8 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
   const renderGivenNameField = () => (
     <div className={`form-group ${state.errors.givenName ? 'has-error' : ''}`}>
       <label>
-        {t('reservation.customerForm.givenName')} <span className="required">*</span>
+        {t('reservation.customerForm.givenName')}{' '}
+        <span className="required">*</span>
       </label>
       <input
         type="text"
@@ -123,7 +127,8 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
   const renderFamilyNameField = () => (
     <div className={`form-group ${state.errors.familyName ? 'has-error' : ''}`}>
       <label>
-        {t('reservation.customerForm.familyName')} <span className="required">*</span>
+        {t('reservation.customerForm.familyName')}{' '}
+        <span className="required">*</span>
       </label>
       <input
         type="text"
@@ -137,7 +142,7 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
   );
 
   return (
-    <form className="customer-info-form" onSubmit={handleSubmit}>
+    <form className="customer-input-form" onSubmit={handleSubmit}>
       <h3>{t('reservation.customerForm.title')}</h3>
       {/* 姓名フィールド：言語設定に応じて表示順序を切り替え */}
       <div className="form-row">
@@ -156,31 +161,43 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
 
       <div className="form-group">
         <label>{t('reservation.customerForm.emailAddress')}</label>
-        <input type="email" value={state.emailAddress} onChange={handleChange('emailAddress')} />
-        {state.errors.emailAddress && <span className="error-message">{state.errors.emailAddress}</span>}
+        <input
+          type="email"
+          value={state.emailAddress}
+          onChange={handleChange('emailAddress')}
+        />
+        {state.errors.emailAddress && (
+          <span className="error-message">{state.errors.emailAddress}</span>
+        )}
       </div>
       <div className="form-group">
         <label>{t('reservation.customerForm.phoneNumber')}</label>
-        <input type="tel" value={state.phoneNumber} onChange={handleChange('phoneNumber')} />
+        <input
+          type="tel"
+          value={state.phoneNumber}
+          onChange={handleChange('phoneNumber')}
+        />
         {state.errors.phoneNumber && (
           <span className="error-message">{state.errors.phoneNumber}</span>
         )}
       </div>
 
-      {/* 到着時刻入力 */}
-      <div className={`form-group ${state.errors.arriveAt ? 'has-error' : ''}`}>
-        <label>
-          {t('reservation.customerForm.arriveAt')} <span className="required">*</span>
-        </label>
+      {/* 到着時刻入力（任意、未選択時はデフォルト15:00） */}
+      <div className="form-group">
+        <label>{t('reservation.customerForm.arriveAt')}</label>
         <select value={state.arriveAt} onChange={handleChange('arriveAt')}>
-          <option value="">{t('reservation.customerForm.arriveAtPlaceholder')}</option>
+          <option value="">
+            {t('reservation.customerForm.arriveAtPlaceholder')}
+          </option>
           {[...Array(10)].map((_, i) => (
             <option key={i} value={`${15 + i}:00`}>
               {15 + i}:00
             </option>
           ))}
         </select>
-        {state.errors.arriveAt && <span className="error-message">{state.errors.arriveAt}</span>}
+        <span className="hint-message">
+          {t('reservation.customerForm.arriveAtHint')}
+        </span>
       </div>
 
       <div className="button-container">
@@ -194,7 +211,11 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
             ? t('reservation.customerForm.cancellingButton')
             : t('reservation.customerForm.cancelButton')}
         </button>
-        <button type="submit" className="btn btn-primary" disabled={isSubmitting || isCancelling}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={isSubmitting || isCancelling}
+        >
           {isSubmitting
             ? t('reservation.customerForm.submittingButton')
             : t('reservation.customerForm.submitButton')}
@@ -204,4 +225,4 @@ const CustomerInfoForm = ({ onSubmit, onCancel, isSubmitting, isCancelling }) =>
   );
 };
 
-export default CustomerInfoForm;
+export default CustomerInputForm;

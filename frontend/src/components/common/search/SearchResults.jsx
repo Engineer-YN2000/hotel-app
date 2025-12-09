@@ -191,6 +191,12 @@ const SearchResults = ({
         };
       });
 
+    // 防御的チェック: フィルタ後に部屋が残っているか確認
+    // （UIで無効化されているが、API操作による空配列送信を防止）
+    if (roomsPayload.length === 0) {
+      return;
+    }
+
     // 予約API呼び出し
     try {
       const payload = {

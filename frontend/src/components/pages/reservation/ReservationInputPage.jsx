@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ReservationSummary,
-  CustomerInfoForm,
+  CustomerInputForm,
   ServerError,
 } from '../../common';
 import './ReservationInputPage.css';
@@ -46,11 +46,14 @@ const ReservationInputPage = () => {
 
   const handleSubmitCustomerInfo = async (formData) => {
     try {
-      const res = await fetch(`/api/reservations/${reservationId}/customer-info`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+      const res = await fetch(
+        `/api/reservations/${reservationId}/customer-info`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        },
+      );
 
       if (res.ok) {
         console.log(t('reservation.inputPage.processingComplete'));
@@ -106,7 +109,9 @@ const ReservationInputPage = () => {
   if (loading) {
     return (
       <div className="reservation-input-page">
-        <div className="loading-container">{t('reservation.inputPage.loading')}</div>
+        <div className="loading-container">
+          {t('reservation.inputPage.loading')}
+        </div>
       </div>
     );
   }
@@ -116,7 +121,9 @@ const ReservationInputPage = () => {
   if (errorState === 'NOT_FOUND') {
     return (
       <div className="reservation-input-page">
-        <div className="not-found-container">{t('reservation.inputPage.notFound')}</div>
+        <div className="not-found-container">
+          {t('reservation.inputPage.notFound')}
+        </div>
       </div>
     );
   }
@@ -128,7 +135,7 @@ const ReservationInputPage = () => {
       </header>
       <main>
         <ReservationSummary reservation={reservation} />
-        <CustomerInfoForm
+        <CustomerInputForm
           onSubmit={handleSubmitCustomerInfo}
           onCancel={handleCancel}
           isCancelling={isCancelling}

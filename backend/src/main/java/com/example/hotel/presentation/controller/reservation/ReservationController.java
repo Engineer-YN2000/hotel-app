@@ -140,12 +140,12 @@ public class ReservationController {
    * 宿泊日程、合計料金等）を取得する。
    *
    * 【エラーハンドリング設計】
-   * 予約が存在しない場合を含む全てのエラーは500を返却し、
-   * フロントエンドでServerErrorページを表示する。
-   * （422はインラインバリデーションエラー専用）
+   * - 予約が存在しない場合: 404 Not Found
+   * - サーバーエラー: 500 Internal Server Error
    *
    * @param id 予約ID
    * @return 成功時: 予約情報レスポンスDTO (200 OK)
+   *         予約未存在: 404 Not Found
    *         エラー時: 500 Internal Server Error
    */
   @GetMapping("/{id}")
@@ -155,13 +155,13 @@ public class ReservationController {
       return ResponseEntity.ok(response);
     }
     catch (IllegalArgumentException e) {
-      // 予約が見つからない場合（ビジネスエラー → サーバーエラーとして処理）
+      // 予約が見つからない場合 → 404 Not Found
       log.warn(messageSource.getMessage("log.reservation.notfound",
           new Object[]{id, e.getMessage()}, Locale.getDefault()));
-      return ResponseEntity.internalServerError().build();
+      return ResponseEntity.notFound().build();
     }
     catch (Exception e) {
-      // サーバーエラー
+      // サーバーエラー → 500 Internal Server Error
       log.error(
           messageSource.getMessage("log.unexpected.error.reservation", null, Locale.getDefault()),
           e);
@@ -290,6 +290,36 @@ public class ReservationController {
     catch (Exception e) {
       // サーバーエラー
       log.error("Unexpected error during reservation cancel: id={}", id, e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /**
+   * 仮予約を期限切れ（EXPIRED）ステータスに更新するAPI
+   *
+   * P-910（予約有効時間切れ画面）からトップページに戻る際に呼び出されます。
+   * 以下の条件を満たす場合のみステータス40（EXPIRED）に更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以前（タイムアウト済み）
+   *
+   * 条件を満たさない場合でも200 OKを返します（ベストエフォート処理）。
+   * バッチ処理が最終的な整合性を保証するため、フロントエンドでのエラーハンドリングは不要です。
+   *
+   * @param id 予約ID
+   * @return 成功時: 200 OK
+   *         エラー時: 500 Internal Server Error
+   */
+  @PostMapping("/{id}/expire")
+  public ResponseEntity<?> expireReservation(@PathVariable Integer id) {
+    try {
+      log.info("Expire reservation request received: id={}", id);
+      int updated = reservationService.expireReservation(id);
+      log.info("Expire reservation completed: id={}, updated={}", id, updated);
+      return ResponseEntity.ok().build();
+    }
+    catch (Exception e) {
+      // サーバーエラー
+      log.error("Unexpected error during reservation expire: id={}", id, e);
       return ResponseEntity.internalServerError().build();
     }
   }

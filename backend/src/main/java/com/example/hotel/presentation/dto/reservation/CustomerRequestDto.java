@@ -34,6 +34,11 @@ public class CustomerRequestDto {
 
   private String emailAddress;
 
+  /**
+   * 到着予定時刻
+   *
+   * 未入力（null）の場合、バックエンドでデフォルト値（15:00）が適用される。
+   */
   @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
   private LocalTime arriveAt;
 

@@ -101,9 +101,9 @@ public class ReservationService {
     Reservation reservation = new Reservation(null, // reservationId (自動採番)
         null, // reserverId (仮予約用IDは必要に応じて指定)
         now, // reservedAt (予約日時)
-        request.getCheckInDate(), request.getCheckOutDate(), null, // arriveAt（仮予約はデフォルト15:00）
+        request.getCheckInDate(), request.getCheckOutDate(), null, // arriveAt（仮予約時はnull、顧客情報登録時に設定）
         ReservationStatus.TENTATIVE, // 仮予約ステータス
-        now.plusMinutes(reservationProperties.getExpiryMinutes()) // pendingLimitAt (仮予約期限)
+        now.plusMinutes(reservationProperties.getTentative().getExpiryMinutes()) // pendingLimitAt (仮予約期限)
     );
     Result<Reservation> insertResult = reservationDao.insert(reservation);
     // immutableエンティティのため、Result.getEntity()から自動採番されたIDを取得
@@ -205,9 +205,22 @@ public class ReservationService {
     }
 
     // 3. 予約レコードに予約者IDと到着予定時刻を紐付け
+    // 到着時刻が未入力の場合はデフォルト値を適用
+    java.time.LocalTime arriveAt = request.getArriveAt();
+    if (arriveAt == null) {
+      arriveAt = java.time.LocalTime.parse(reservationProperties.getDefaultArrivalTime());
+    }
+    // 【TOCTOU競合対策】SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
+    // 検証と更新を原子的に実行。事前のisExpiredチェックは早期エラー返却用。
     int updated = reservationDao.bindReserverAndArrivalTime(reservationId, targetReserverId,
-        request.getArriveAt(), ReservationStatus.TENTATIVE);
+        arriveAt, ReservationStatus.TENTATIVE);
     if (updated == 0) {
+      // 更新失敗時は期限切れを再確認して適切な例外をスロー
+      if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
+        throw new ReservationExpiredException(
+            messageSource.getMessage("error.reservation.expired", null, null), reservationId);
+      }
+      // 期限切れ以外の原因（予約が存在しない、ステータスが変更された等）
       throw new IllegalStateException(
           messageSource.getMessage("error.reservation.update.failed", null, null));
     }
@@ -230,5 +243,32 @@ public class ReservationService {
           messageSource.getMessage("error.reservation.notfound", null, null));
     }
     log.info("Reservation cancelled: id={}", reservationId);
+  }
+
+  /**
+   * 仮予約を期限切れ（EXPIRED）ステータスに更新します。
+   *
+   * P-910（予約有効時間切れ画面）からトップページに戻る際に呼び出されます。
+   * 以下の条件を満たす場合のみ更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以前（タイムアウト済み）
+   *
+   * 条件を満たさない場合（既に別ステータス、バッチで処理済み等）は更新件数0を返します。
+   * これはベストエフォートの処理であり、バッチ処理が最終的な整合性を保証します。
+   *
+   * @param reservationId 期限切れにする予約ID
+   * @return 更新件数（条件を満たさない場合は0）
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public int expireReservation(Integer reservationId) {
+    int updated = reservationDao.expireReservation(reservationId, ReservationStatus.TENTATIVE,
+        ReservationStatus.EXPIRED);
+    if (updated > 0) {
+      log.info("Reservation expired: id={}", reservationId);
+    }
+    else {
+      log.info("Reservation not expired (already processed or not eligible): id={}", reservationId);
+    }
+    return updated;
   }
 }

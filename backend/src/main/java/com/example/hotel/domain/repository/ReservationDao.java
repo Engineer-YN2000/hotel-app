@@ -63,14 +63,14 @@ public interface ReservationDao {
   /**
    * 仮予約に予約者IDと到着予定時刻を紐付けます。
    *
-   * 指定された予約IDかつTENTATIVEステータスのレコードのみを更新対象とします。
-   * これにより、現在のトランザクションで作成された仮予約のみが更新されます。
+   * 指定された予約IDかつTENTATIVEステータス、かつ有効期限内のレコードのみを更新対象とします。
+   * WHERE句に pending_limit_at > NOW() を含めることで、TOCTOU競合を防止します。
    *
    * @param reservationId 予約ID
    * @param reserverId 予約者ID
    * @param arriveAt 到着予定時刻
    * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
-   * @return 更新件数（0の場合は対象レコードなし）
+   * @return 更新件数（0の場合は対象レコードなしまたは期限切れ）
    */
   @Update(sqlFile = true)
   int bindReserverAndArrivalTime(Integer reservationId, Integer reserverId, LocalTime arriveAt,
@@ -106,4 +106,18 @@ public interface ReservationDao {
    */
   @Update(sqlFile = true)
   int updateStatus(Integer reservationId, Integer newStatus);
+
+  /**
+   * 仮予約を期限切れ（EXPIRED）ステータスに更新します。
+   *
+   * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以前の場合のみ更新します。
+   * P-910（予約有効時間切れ画面）からトップページに戻る際に呼び出されます。
+   *
+   * @param reservationId 予約ID
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @param expiredStatus 期限切れステータス（ReservationStatus.EXPIREDを指定）
+   * @return 更新件数（0の場合は対象レコードなしまたは条件不一致）
+   */
+  @Update(sqlFile = true)
+  int expireReservation(Integer reservationId, Integer tentativeStatus, Integer expiredStatus);
 }

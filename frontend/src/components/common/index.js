@@ -13,4 +13,4 @@ export { CalendarModal } from './calendar';
 export { RefineForm, SearchResults } from './search';
 
 // reservation - 予約関連
-export { ReservationSummary, CustomerInfoForm } from './reservation';
+export { ReservationSummary, CustomerInputForm } from './reservation';

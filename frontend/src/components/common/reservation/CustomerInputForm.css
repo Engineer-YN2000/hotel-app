@@ -2,7 +2,7 @@
  * C-022 顧客情報入力フォーム スタイル
  * P-010のフォームスタイルと統一
  */
-.customer-info-form {
+.customer-input-form {
   background-color: #fcfcfc;
   border: 1px solid #ddd;
   border-radius: 8px;
@@ -10,7 +10,7 @@
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
-.customer-info-form h3 {
+.customer-input-form h3 {
   margin-top: 0;
   margin-bottom: 20px;
   font-size: 1.1em;
@@ -73,6 +73,13 @@
   color: #e63946;
   font-size: 0.875em;
   font-weight: 500;
+}
+
+.form-group .hint-message {
+  display: block;
+  margin-top: 4px;
+  color: #666;
+  font-size: 0.85em;
 }
 
 .button-container {

@@ -211,10 +211,10 @@ const TopPage = () => {
 
     // 【日付連動ロジック】チェックイン日+1日をチェックアウト日に自動設定
     if (newCheckInDate) {
-      const checkIn = new Date(newCheckInDate);
-      const nextDay = new Date(checkIn);
-      nextDay.setDate(checkIn.getDate() + 1); // 月跨ぎも自動処理
-      const newCheckOutDate = nextDay.toISOString().split('T')[0];
+      const newCheckInDateObj = new Date(newCheckInDate);
+      const newCheckOutDateObj = new Date(newCheckInDateObj);
+      newCheckOutDateObj.setDate(newCheckInDateObj.getDate() + 1); // 月跨ぎも自動処理
+      const newCheckOutDate = newCheckOutDateObj.toISOString().split('T')[0];
       setCheckOutDate(newCheckOutDate);
       // 【価格再計算】検索結果表示中は新しい日付で価格を再計算
       recalculatePrices(newCheckInDate, newCheckOutDate);
