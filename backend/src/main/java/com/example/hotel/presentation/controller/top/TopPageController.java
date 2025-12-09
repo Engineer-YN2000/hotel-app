@@ -2,11 +2,15 @@ package com.example.hotel.presentation.controller.top;
 
 import com.example.hotel.domain.service.CacheService;
 import com.example.hotel.domain.service.SearchService;
+import com.example.hotel.domain.model.RoomStockInfo;
 import com.example.hotel.domain.repository.AreaDetailDao;
 import com.example.hotel.domain.model.AreaDetail;
 import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
+import com.example.hotel.presentation.dto.top.PriceCalculationRequestDto;
+import com.example.hotel.presentation.dto.top.PriceCalculationResponseDto;
 import com.example.hotel.presentation.dto.top.SearchCriteriaDto;
 import com.example.hotel.presentation.dto.top.SearchResultDto;
+import com.example.hotel.utils.PriceCalculator;
 
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +18,8 @@ import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -178,6 +184,81 @@ public class TopPageController {
       log.error(messageSource.getMessage("log.unexpected.error.search", null, Locale.getDefault()),
           e);
       return ResponseEntity.internalServerError().build(); // 500: サーバーエラー
+    }
+  }
+
+  /**
+   * 価格再計算API
+   *
+   * チェックイン日・チェックアウト日が変更された際に、
+   * 選択中の部屋の価格を再計算する。
+   *
+   * 【セキュリティ設計】
+   * - 内部の価格計算ロジック（係数、需要変動等）は隠蔽
+   * - 計算結果のみをクライアントに提供
+   * - 不正なroomTypeIdに対しては計算をスキップ（空結果を含む）
+   *
+   * @param request 価格再計算リクエスト（チェックイン日、チェックアウト日、部屋リスト）
+   * @return 成功時: 200 OK + PriceCalculationResponseDto
+   *         エラー時: 422 + ApiErrorResponseDto
+   */
+  @PostMapping("/api/price/calculate")
+  public ResponseEntity<?> calculatePrice(@Valid @RequestBody PriceCalculationRequestDto request) {
+    try {
+      // 【検証1】チェックイン日の過去日検証
+      LocalDate today = LocalDate.now();
+      if (request.getCheckInDate().isBefore(today)) {
+        log.warn(messageSource.getMessage("log.business.rule.violation.checkin.past.date",
+            new Object[]{request.getCheckInDate(), today, request}, Locale.getDefault()));
+        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
+            .create("validation.date.checkInPastDate", 422, "/api/price/calculate");
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+      }
+
+      // 【検証2】チェックアウト日の論理的整合性検証
+      if (request.getCheckOutDate().isBefore(request.getCheckInDate())
+          || request.getCheckOutDate().isEqual(request.getCheckInDate())) {
+        log.warn(messageSource.getMessage("log.business.rule.violation.checkout.before.checkin",
+            new Object[]{request.getCheckInDate(), request.getCheckOutDate(), request},
+            Locale.getDefault()));
+        ApiErrorResponseDto errorResponse = ApiErrorResponseDto
+            .create("validation.date.checkOutBeforeCheckIn", 422, "/api/price/calculate");
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+      }
+
+      log.info(messageSource.getMessage("log.price.calculation.request.received",
+          new Object[]{request}, Locale.getDefault()));
+
+      // キャッシュから部屋タイプ情報を取得
+      Map<Integer, RoomStockInfo> stockCache = cacheService.getStockCache();
+
+      // 各部屋タイプの価格を再計算
+      List<PriceCalculationResponseDto.RoomPriceDto> roomPrices = request.getRooms().stream()
+          .filter(room -> stockCache.containsKey(room.getRoomTypeId())).map(room -> {
+            RoomStockInfo stockInfo = stockCache.get(room.getRoomTypeId());
+            Integer price = PriceCalculator.calculateTotalPrice(stockInfo.getRoomCapacity(),
+                room.getHotelId(), request.getCheckInDate(), request.getCheckOutDate());
+            return new PriceCalculationResponseDto.RoomPriceDto(room.getRoomTypeId(),
+                room.getHotelId(), price);
+          }).toList();
+
+      log.info(messageSource.getMessage("log.price.calculation.success",
+          new Object[]{roomPrices.size()}, Locale.getDefault()));
+
+      return ResponseEntity.ok(new PriceCalculationResponseDto(roomPrices));
+
+    }
+    catch (IllegalArgumentException e) {
+      log.warn(messageSource.getMessage("log.business.rule.violation.general",
+          new Object[]{e.getMessage(), request}, Locale.getDefault()));
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto
+          .create("validation.api.businessRuleViolation", 422, "/api/price/calculate");
+      return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorResponse);
+    }
+    catch (Exception e) {
+      log.error(messageSource.getMessage("log.unexpected.error.price.calculation", null,
+          Locale.getDefault()), e);
+      return ResponseEntity.internalServerError().build();
     }
   }
 

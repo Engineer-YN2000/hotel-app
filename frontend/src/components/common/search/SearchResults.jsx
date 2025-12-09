@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import './SearchResults.css';
@@ -13,6 +13,8 @@ const SearchResults = ({
   guestCount,
   checkInDate,
   checkOutDate,
+  updatedPrices,
+  isPriceLoading,
 }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -24,6 +26,23 @@ const SearchResults = ({
   const DEFAULT_NIGHTS = 2; // 日付計算異常時のフォールバック値
   const LOW_STOCK_THRESHOLD = 3; // 「残り○部屋！」表示の閾値
   const MIN_ROOM_COUNT = 0; // 室数選択の最小値（input要素のmin/defaultValue属性で使用）
+
+  /**
+   * 部屋タイプの価格を取得
+   * 価格再計算結果があればそれを使用、なければ元の価格を使用
+   */
+  const getRoomPrice = useCallback(
+    (hotelId, roomTypeId, originalPrice) => {
+      if (
+        updatedPrices &&
+        updatedPrices[`${hotelId}-${roomTypeId}`] !== undefined
+      ) {
+        return updatedPrices[`${hotelId}-${roomTypeId}`];
+      }
+      return originalPrice;
+    },
+    [updatedPrices],
+  );
 
   // 宿泊日数を計算
   const numberOfNights = useMemo(() => {
@@ -66,7 +85,7 @@ const SearchResults = ({
     hotels.forEach((hotel) => {
       hotel.roomTypes.forEach((roomType) => {
         const count = selectedRooms[hotel.hotelId]?.[roomType.roomTypeId] || 0;
-        totalGuestsInSelectedRooms += count * roomType.capacity;
+        totalGuestsInSelectedRooms += count * roomType.roomCapacity;
       });
     });
 
@@ -90,17 +109,25 @@ const SearchResults = ({
     };
   }, [selectedRooms, guestCount, hotels]);
 
-  // ホテルごとの予約ボタン無効化条件
+  // ホテルごとの予約ボタン無効化条件と合計金額計算
   const getReservationButtonState = useMemo(() => {
     const hotelStates = {};
     hotels.forEach((hotel) => {
       const hotelRooms = selectedRooms[hotel.hotelId] || {};
 
-      // そのホテルで選択された部屋の合計定員を計算
+      // そのホテルで選択された部屋の合計定員と合計金額を計算
       let hotelTotalCapacity = 0;
+      let hotelTotalPrice = 0;
       hotel.roomTypes.forEach((roomType) => {
         const count = hotelRooms[roomType.roomTypeId] || 0;
-        hotelTotalCapacity += count * roomType.capacity;
+        hotelTotalCapacity += count * roomType.roomCapacity;
+        // 価格再計算結果があればそれを使用
+        const price = getRoomPrice(
+          hotel.hotelId,
+          roomType.roomTypeId,
+          roomType.price,
+        );
+        hotelTotalPrice += count * price;
       });
 
       const hasSelectedRooms = hotelTotalCapacity > 0;
@@ -110,10 +137,12 @@ const SearchResults = ({
       hotelStates[hotel.hotelId] = {
         disabled: !hasSelectedRooms || !hasEnoughCapacity,
         hasSelectedRooms,
+        totalPrice: hotelTotalPrice,
+        totalCapacity: hotelTotalCapacity,
       };
     });
     return hotelStates;
-  }, [hotels, selectedRooms, guestCount]);
+  }, [hotels, selectedRooms, guestCount, getRoomPrice]);
 
   const handleRoomCountChange = (hotelId, roomTypeId, count) => {
     // 数値を最小値以上に補正
@@ -151,20 +180,22 @@ const SearchResults = ({
       return;
     }
 
-    // バックエンドDTOの形式に変換: [{ roomTypeId, roomCount, price }, ...]
+    // バックエンドDTOの形式に変換: [{ roomTypeId, roomCount }, ...]
     const roomsPayload = Object.entries(roomsToReserve)
       .filter(([, count]) => count > 0)
       .map(([roomTypeIdStr, count]) => {
         const roomTypeId = parseInt(roomTypeIdStr, 10);
-        const roomType = hotel.roomTypes.find(
-          (rt) => rt.roomTypeId === roomTypeId,
-        );
         return {
           roomTypeId,
           roomCount: count,
-          price: roomType ? roomType.price : 0,
         };
       });
+
+    // 防御的チェック: フィルタ後に部屋が残っているか確認
+    // （UIで無効化されているが、API操作による空配列送信を防止）
+    if (roomsPayload.length === 0) {
+      return;
+    }
 
     // 予約API呼び出し
     try {
@@ -181,8 +212,9 @@ const SearchResults = ({
       if (!response.ok) {
         throw new Error('Reservation API error');
       }
-      // 正常時は仮ページへ遷移
-      navigate('/reservation-next');
+      // 正常時はP-020（予約詳細入力ページ）へ遷移
+      const data = await response.json();
+      navigate(`/reservation/${data.reservationId}`);
     } catch (error) {
       // エラー時はServerErrorページへ遷移
       navigate('/server-error');
@@ -214,22 +246,39 @@ const SearchResults = ({
                   <td>
                     {roomType.roomTypeName}
                     <span className="room-capacity">
-                      ({t('labels.capacity', { count: roomType.capacity })})
+                      ({t('labels.capacity', { count: roomType.roomCapacity })})
                     </span>
                   </td>
                   <td>
-                    <span className="room-price">
-                      ¥{roomType.price.toLocaleString()}
-                    </span>
-                    <span className="room-price-per-night">
-                      (
-                      {t('labels.referencePerNight', {
-                        price: Math.round(
-                          roomType.price / numberOfNights,
-                        ).toLocaleString(),
-                      })}
-                      )
-                    </span>
+                    {isPriceLoading ? (
+                      <span className="price-loading">
+                        {t('labels.priceCalculating')}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="room-price">
+                          ¥
+                          {getRoomPrice(
+                            hotel.hotelId,
+                            roomType.roomTypeId,
+                            roomType.price,
+                          ).toLocaleString()}
+                        </span>
+                        <span className="room-price-per-night">
+                          (
+                          {t('labels.referencePerNight', {
+                            price: Math.round(
+                              getRoomPrice(
+                                hotel.hotelId,
+                                roomType.roomTypeId,
+                                roomType.price,
+                              ) / numberOfNights,
+                            ).toLocaleString(),
+                          })}
+                          )
+                        </span>
+                      </>
+                    )}
                   </td>
                   <td>
                     {/* 画面仕様書  (ビジネスホテルXYZ) の「残り3部屋！」のロジック */}
@@ -265,20 +314,39 @@ const SearchResults = ({
           </table>
           <div className="hotel-booking-footer">
             <div className="booking-summary">
+              {/* 合計金額表示 */}
+              {getReservationButtonState[hotel.hotelId]?.hasSelectedRooms && (
+                <div className="total-price-section">
+                  <span className="total-price-display">
+                    {t('labels.totalAmount')}: ¥
+                    {getReservationButtonState[
+                      hotel.hotelId
+                    ]?.totalPrice.toLocaleString()}
+                  </span>
+                  <span className="total-price-note">
+                    {t('labels.selectedCapacity', {
+                      count:
+                        getReservationButtonState[hotel.hotelId]?.totalCapacity,
+                    })}
+                  </span>
+                </div>
+              )}
               {/* 状態 1-D (インラインバリデーションエラー)  */}
-              {validation.roomSelectionError && (
-                <span className="room-selection-error-message">
-                  {t('validation.form.roomSelectionRequired')}
-                </span>
-              )}
-              {validation.capacityError && (
-                <span className="capacity-error-message">
-                  {t('validation.form.capacityError', {
-                    guestCount,
-                    totalCapacity: validation.totalCapacity,
-                  })}
-                </span>
-              )}
+              <div className="validation-messages">
+                {validation.roomSelectionError && (
+                  <span className="room-selection-error-message">
+                    {t('validation.form.roomSelectionRequired')}
+                  </span>
+                )}
+                {validation.capacityError && (
+                  <span className="capacity-error-message">
+                    {t('validation.form.capacityError', {
+                      guestCount,
+                      totalCapacity: validation.totalCapacity,
+                    })}
+                  </span>
+                )}
+              </div>
             </div>
             {/* C-032 予約ボタン  */}
             <button

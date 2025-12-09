@@ -176,4 +176,33 @@ public class PriceCalculator {
 
     return Math.max(finalPrice, properties.getBasePerPerson()); // 最低価格保証
   }
+
+  /**
+   * チェックイン日からチェックアウト日前日までの各宿泊日の価格を合算して総額を計算する。
+   *
+   * UIに表示される価格は「ユーザーが指定した日数宿泊した際の料金」であるため、
+   * 各宿泊日の価格を日毎に計算してループで合算する。
+   *
+   * 例: チェックイン 12/1、チェックアウト 12/4 の場合
+   *     12/1, 12/2, 12/3 の3泊分の価格を合算
+   *
+   * @param capacity 定員数
+   * @param hotelId ホテルID
+   * @param checkInDate チェックイン日（宿泊開始日）
+   * @param checkOutDate チェックアウト日（宿泊終了日、この日は宿泊しない）
+   * @return 宿泊期間の総額（1部屋あたり）
+   */
+  public static Integer calculateTotalPrice(Integer capacity, Integer hotelId,
+      LocalDate checkInDate, LocalDate checkOutDate) {
+    int totalPrice = 0;
+    LocalDate currentDate = checkInDate;
+
+    // チェックイン日からチェックアウト日の前日まで（チェックアウト日は宿泊しない）
+    while (currentDate.isBefore(checkOutDate)) {
+      totalPrice += calculatePrice(capacity, hotelId, currentDate);
+      currentDate = currentDate.plusDays(1);
+    }
+
+    return totalPrice;
+  }
 }

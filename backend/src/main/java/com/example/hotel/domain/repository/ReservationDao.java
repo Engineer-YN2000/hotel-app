@@ -1,15 +1,18 @@
 package com.example.hotel.domain.repository;
 
 import com.example.hotel.domain.model.Reservation;
+import com.example.hotel.domain.model.ReservationWithRoomInfo;
 
 import org.seasar.doma.Dao;
 import org.seasar.doma.Insert;
 import org.seasar.doma.Select;
+import org.seasar.doma.Update;
 import org.seasar.doma.boot.ConfigAutowireable;
 import org.seasar.doma.jdbc.Result;
 import org.seasar.doma.jdbc.SelectOptions;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -56,4 +59,65 @@ public interface ReservationDao {
   @Select
   int countReservedRooms(Integer roomTypeId, List<Integer> reservedStatuses, LocalDate checkInDate,
       LocalDate checkOutDate, SelectOptions options);
+
+  /**
+   * 仮予約に予約者IDと到着予定時刻を紐付けます。
+   *
+   * 指定された予約IDかつTENTATIVEステータス、かつ有効期限内のレコードのみを更新対象とします。
+   * WHERE句に pending_limit_at > NOW() を含めることで、TOCTOU競合を防止します。
+   *
+   * @param reservationId 予約ID
+   * @param reserverId 予約者ID
+   * @param arriveAt 到着予定時刻
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @return 更新件数（0の場合は対象レコードなしまたは期限切れ）
+   */
+  @Update(sqlFile = true)
+  int bindReserverAndArrivalTime(Integer reservationId, Integer reserverId, LocalTime arriveAt,
+      Integer tentativeStatus);
+
+  /**
+   * 指定された予約IDの仮予約が期限切れかどうかを判定します。
+   *
+   * 予約ステータスがTENTATIVEかつpending_limit_atが現在時刻を過ぎている場合にtrueを返します。
+   *
+   * @param reservationId 予約ID
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @return 期限切れの場合true、そうでない場合false
+   */
+  @Select
+  boolean isExpired(Integer reservationId, Integer tentativeStatus);
+
+  @Select
+  List<ReservationWithRoomInfo> selectByIdWithDetails(Integer reservationId);
+
+  @Select
+  Integer selectReserverId(Integer reservationId);
+
+  /**
+   * 予約ステータスを更新します。
+   *
+   * 指定された予約IDの予約ステータスを新しいステータスに更新します。
+   * キャンセル処理などで使用されます。
+   *
+   * @param reservationId 予約ID
+   * @param newStatus 新しい予約ステータス（ReservationStatus定数値）
+   * @return 更新件数（0の場合は対象レコードなし）
+   */
+  @Update(sqlFile = true)
+  int updateStatus(Integer reservationId, Integer newStatus);
+
+  /**
+   * 仮予約を期限切れ（EXPIRED）ステータスに更新します。
+   *
+   * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以前の場合のみ更新します。
+   * P-910（予約有効時間切れ画面）からトップページに戻る際に呼び出されます。
+   *
+   * @param reservationId 予約ID
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @param expiredStatus 期限切れステータス（ReservationStatus.EXPIREDを指定）
+   * @return 更新件数（0の場合は対象レコードなしまたは条件不一致）
+   */
+  @Update(sqlFile = true)
+  int expireReservation(Integer reservationId, Integer tentativeStatus, Integer expiredStatus);
 }

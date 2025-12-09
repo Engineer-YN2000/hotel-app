@@ -21,6 +21,9 @@ public final class ReservationStatus {
   /** キャンセル */
   public static final int CANCELLED = 30;
 
+  /** 期限切れ（仮予約のタイムアウト） */
+  public static final int EXPIRED = 40;
+
   /**
    * 予約済みとしてカウントする予約ステータスのリスト 空室検索では「仮予約」と「確定予約」を予約済みとして除外する （つまり、AVAILABLE のみが検索対象となる空室）
    */

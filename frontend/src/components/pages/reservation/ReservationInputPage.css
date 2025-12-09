@@ -1,0 +1,68 @@
+/**
+ * P-020 予約詳細入力ページ スタイル
+ * P-010とのデザイン統一を意識
+ */
+
+/* --- ページレイアウト --- */
+.reservation-input-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.reservation-input-page header {
+  border-bottom: 2px solid #eee;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.reservation-input-page header h1 {
+  font-size: 1.5rem;
+  color: #005a9c;
+  margin: 0;
+  text-align: center;
+}
+
+.reservation-input-page main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* --- ローディング表示 --- */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #555;
+  font-size: 1rem;
+}
+
+/* --- エラー表示（NOT_FOUND） --- */
+.not-found-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #e63946;
+  font-size: 1rem;
+  background-color: #fff5f5;
+  border: 1px solid #ffcccc;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+/* --- レスポンシブ対応 --- */
+@media (max-width: 640px) {
+  .reservation-input-page {
+    padding: 12px;
+  }
+
+  .reservation-input-page header h1 {
+    font-size: 1.25rem;
+  }
+}

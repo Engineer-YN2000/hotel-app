@@ -19,7 +19,9 @@ export const searchMessages = {
       referencePerNight: '参考: ¥{{price}}/泊',
       remainingRooms: '残り{{count}}部屋！',
       roomsAvailable: '空室あり',
+      priceCalculating: '計算中...',
       totalAmount: '合計金額',
+      selectedCapacity: '選択室の定員: {{count}}名',
       priceNote: '（２泊 / 諸税込み）',
     },
 
@@ -57,7 +59,9 @@ export const searchMessages = {
       referencePerNight: 'Reference: ¥{{price}}/night',
       remainingRooms: 'Only {{count}} rooms left!',
       roomsAvailable: 'Rooms Available',
+      priceCalculating: 'Calculating...',
       totalAmount: 'Total Amount',
+      selectedCapacity: 'Selected capacity: {{count}} guests',
       priceNote: '(2 Nights / Tax Included)',
     },
 

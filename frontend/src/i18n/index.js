@@ -5,6 +5,7 @@ import {
   commonMessages,
   calendarMessages,
   feedbackMessages,
+  reservationMessages,
   searchMessages,
   topPageMessages,
 } from './messages';
@@ -45,6 +46,7 @@ const buildResources = () => {
     commonMessages,
     calendarMessages,
     feedbackMessages,
+    reservationMessages,
     searchMessages,
     topPageMessages,
   ];

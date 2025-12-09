@@ -61,6 +61,12 @@
   color: #555;
   display: block;
 }
+/* 価格計算中の表示 */
+.price-loading {
+  font-size: 0.95em;
+  color: #666;
+  font-style: italic;
+}
 .remaining-rooms {
   color: #e63946;
   font-weight: 600;
@@ -77,6 +83,9 @@
   text-align: left;
   flex-grow: 1;
 }
+.booking-summary .total-price-section {
+  margin-bottom: 8px;
+}
 .booking-summary .total-price-display {
   font-size: 1.2em;
   font-weight: 700;
@@ -86,6 +95,16 @@
   font-size: 0.85em;
   color: #666;
   display: block;
+  margin-top: 2px;
+}
+.booking-summary .validation-messages {
+  font-size: 0.9em;
+}
+.booking-summary .room-selection-error-message,
+.booking-summary .capacity-error-message {
+  display: block;
+  color: #e63946;
+  font-weight: 500;
 }
 
 /* --- 結果なし (C-040)  --- */

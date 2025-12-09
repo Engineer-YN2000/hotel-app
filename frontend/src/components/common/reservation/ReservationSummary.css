@@ -1,0 +1,50 @@
+/**
+ * C-021 予約サマリーコンポーネント スタイル
+ * P-010のカードスタイルと統一
+ */
+.reservation-summary-card {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.reservation-summary-card h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 1.1em;
+  color: #005a9c;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.summary-row {
+  display: flex;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+
+.summary-label {
+  flex: 0 0 120px;
+  font-weight: 600;
+  color: #555;
+}
+
+.summary-value {
+  flex: 1;
+  color: #333;
+}
+
+.summary-row.total-price {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.summary-row.total-price .summary-value {
+  font-size: 1.2em;
+  font-weight: 700;
+  color: #d90429;
+}

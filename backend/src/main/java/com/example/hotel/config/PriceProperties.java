@@ -4,96 +4,47 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.context.annotation.PropertySource;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
 /**
  * PriceCalculator用のプロパティ設定クラス
+ *
+ * price-calculator.propertiesの「price.*」プレフィックスの設定値をバインド
  */
 @Component
 @PropertySource("classpath:price-calculator.properties")
 @ConfigurationProperties(prefix = "price")
+@Getter
+@Setter
 public class PriceProperties {
 
+  /** 1人あたりの基本料金 */
   private int basePerPerson;
+
+  /** 定員別の料金倍率リスト */
   private List<Double> capacityMultipliers;
+
+  /** ホテル価格の基本倍率 */
   private double hotelPriceBaseMultiplier;
+
+  /** ホテル価格のバリエーション数 */
   private int hotelVariationCount;
+
+  /** ホテル価格のバリエーションステップ */
   private double hotelVariationStep;
+
+  /** ホテル価格の基本オフセット */
   private double hotelBaseOffset;
+
+  /** 需要変動サイクル */
   private int demandVariationCycle;
+
+  /** 需要変動ステップ */
   private double demandVariationStep;
+
+  /** 需要の基本係数 */
   private double demandBaseFactor;
-
-  // Getters and Setters
-  public int getBasePerPerson() {
-    return basePerPerson;
-  }
-
-  public void setBasePerPerson(int basePerPerson) {
-    this.basePerPerson = basePerPerson;
-  }
-
-  public List<Double> getCapacityMultipliers() {
-    return capacityMultipliers;
-  }
-
-  public void setCapacityMultipliers(List<Double> capacityMultipliers) {
-    this.capacityMultipliers = capacityMultipliers;
-  }
-
-  public double getHotelPriceBaseMultiplier() {
-    return hotelPriceBaseMultiplier;
-  }
-
-  public void setHotelPriceBaseMultiplier(double hotelPriceBaseMultiplier) {
-    this.hotelPriceBaseMultiplier = hotelPriceBaseMultiplier;
-  }
-
-  public int getHotelVariationCount() {
-    return hotelVariationCount;
-  }
-
-  public void setHotelVariationCount(int hotelVariationCount) {
-    this.hotelVariationCount = hotelVariationCount;
-  }
-
-  public double getHotelVariationStep() {
-    return hotelVariationStep;
-  }
-
-  public void setHotelVariationStep(double hotelVariationStep) {
-    this.hotelVariationStep = hotelVariationStep;
-  }
-
-  public double getHotelBaseOffset() {
-    return hotelBaseOffset;
-  }
-
-  public void setHotelBaseOffset(double hotelBaseOffset) {
-    this.hotelBaseOffset = hotelBaseOffset;
-  }
-
-  public int getDemandVariationCycle() {
-    return demandVariationCycle;
-  }
-
-  public void setDemandVariationCycle(int demandVariationCycle) {
-    this.demandVariationCycle = demandVariationCycle;
-  }
-
-  public double getDemandVariationStep() {
-    return demandVariationStep;
-  }
-
-  public void setDemandVariationStep(double demandVariationStep) {
-    this.demandVariationStep = demandVariationStep;
-  }
-
-  public double getDemandBaseFactor() {
-    return demandBaseFactor;
-  }
-
-  public void setDemandBaseFactor(double demandBaseFactor) {
-    this.demandBaseFactor = demandBaseFactor;
-  }
 }
