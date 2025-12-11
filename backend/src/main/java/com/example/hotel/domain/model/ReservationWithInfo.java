@@ -16,19 +16,21 @@ import java.time.LocalDate;
 @Entity(immutable = false)
 @Data
 public class ReservationWithInfo {
-  // 予約基本情報
+  // 予約基本情報（reservationsテーブル由来）
   @Column(name = "reservation_id")
   private Integer reservationId;
   @Column(name = "check_in_date")
   private LocalDate checkInDate;
   @Column(name = "check_out_date")
   private LocalDate checkOutDate;
+  @Column(name = "arrive_at")
+  private String arriveAt;
 
-  // ホテル情報
+  // ホテル情報（hotelsテーブル由来）
   @Column(name = "hotel_name")
   private String hotelName;
 
-  // 部屋タイプ情報
+  // 部屋タイプ情報（room_types, reservation_detailsテーブル由来）
   @Column(name = "room_type_id")
   private Integer roomTypeId;
   @Column(name = "room_type_name")
@@ -40,7 +42,7 @@ public class ReservationWithInfo {
   @Column(name = "how_much")
   private Integer howMuch;
 
-  // 予約者情報
+  // 予約者情報（reserversテーブル由来）
   @Column(name = "reserver_first_name")
   private String reserverFirstName;
   @Column(name = "reserver_last_name")
@@ -49,6 +51,4 @@ public class ReservationWithInfo {
   private String emailAddress;
   @Column(name = "phone_number")
   private String phoneNumber;
-  @Column(name = "arrive_at")
-  private String arriveAt;
 }

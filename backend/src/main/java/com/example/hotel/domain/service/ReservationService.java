@@ -166,12 +166,13 @@ public class ReservationService {
     ReservationResponseDto.CustomerInfoDto customerInfo = null;
     if (first.getReserverFirstName() != null || first.getReserverLastName() != null) {
       customerInfo = new ReservationResponseDto.CustomerInfoDto(first.getReserverFirstName(),
-          first.getReserverLastName(), first.getPhoneNumber(), first.getEmailAddress(),
-          first.getArriveAt());
+          first.getReserverLastName(), first.getPhoneNumber(), first.getEmailAddress());
     }
 
+    // arriveAtはreservationsテーブル由来のため、トップレベルに配置
     return new ReservationResponseDto(first.getReservationId(), first.getCheckInDate(),
-        first.getCheckOutDate(), first.getHotelName(), rooms, totalFee, customerInfo);
+        first.getCheckOutDate(), first.getHotelName(), rooms, totalFee, first.getArriveAt(),
+        customerInfo);
   }
 
   /**

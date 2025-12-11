@@ -135,7 +135,11 @@ public interface ReservationDao {
   /**
    * 仮予約を確定（CONFIRMEDステータス）に更新します。
    *
-   * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以降の場合のみ更新します。
+   * 指定された予約IDが以下の条件を満たす場合のみ更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以降（有効期限内）
+   * - reserver_idがNULLでない（顧客情報登録済み）
+   *
    * P-030（予約確認）の確定ボタン押下時に使用されます。
    *
    * @param reservationId 予約ID

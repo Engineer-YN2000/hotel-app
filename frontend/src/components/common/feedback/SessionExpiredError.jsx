@@ -13,14 +13,18 @@ const SessionExpiredError = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const reservationId = location.state?.reservationId;
+  const accessToken = location.state?.accessToken;
 
   const handleBackToTop = async () => {
-    // 予約IDがある場合はexpire APIを呼び出してステータスをEXPIREDに更新
-    if (reservationId) {
+    // 予約IDとトークンがある場合はexpire APIを呼び出してステータスをEXPIREDに更新
+    if (reservationId && accessToken) {
       try {
-        const res = await fetch(`/api/reservations/${reservationId}/expire`, {
-          method: 'POST',
-        });
+        const res = await fetch(
+          `/api/reservations/${reservationId}/expire?token=${encodeURIComponent(accessToken)}`,
+          {
+            method: 'POST',
+          }
+        );
         if (!res.ok) {
           // エラー時もログのみ（ベストエフォート処理、バッチが最終保証）
           console.error('Failed to expire reservation: status=', res.status);

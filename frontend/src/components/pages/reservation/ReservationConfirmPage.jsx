@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ReservationSummary, ServerError } from '../../common';
+import useReservation from '../../../hooks/useReservation';
+import useCancelReservation from '../../../hooks/useCancelReservation';
 import './ReservationConfirmPage.css';
 
 /**
@@ -11,36 +13,23 @@ import './ReservationConfirmPage.css';
 const ReservationConfirmPage = () => {
   const { t } = useTranslation();
   const { reservationId } = useParams();
+  const [searchParams] = useSearchParams();
+  const accessToken = searchParams.get('token');
   const navigate = useNavigate();
 
-  const [reservation, setReservation] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [errorState, setErrorState] = useState(null);
+  const { reservation, loading, errorState } = useReservation(
+    reservationId,
+    accessToken,
+  );
+  const { isCancelling, handleCancel } = useCancelReservation(
+    reservationId,
+    accessToken,
+    {
+      confirmMessage: t('reservation.confirmPage.confirmCancel'),
+      errorMessage: t('reservation.confirmPage.cancelError'),
+    },
+  );
   const [isConfirming, setIsConfirming] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
-
-  // 予約データ取得
-  useEffect(() => {
-    const fetchReservation = async () => {
-      try {
-        const res = await fetch(`/api/reservations/${reservationId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setReservation(data);
-        } else if (res.status === 404) {
-          setErrorState('NOT_FOUND');
-        } else {
-          throw new Error('Server Error');
-        }
-      } catch (e) {
-        console.error(e);
-        setErrorState('SERVER_ERROR');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchReservation();
-  }, [reservationId]);
 
   /**
    * 予約確定ボタン押下時の処理
@@ -49,16 +38,19 @@ const ReservationConfirmPage = () => {
   const handleConfirm = async () => {
     setIsConfirming(true);
     try {
-      const res = await fetch(`/api/reservations/${reservationId}/confirm`, {
-        method: 'POST',
-      });
+      const res = await fetch(
+        `/api/reservations/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}`,
+        {
+          method: 'POST',
+        },
+      );
 
       if (res.ok) {
         // P-040（予約完了）へ遷移
         navigate(`/reservation/${reservationId}/complete`);
       } else if (res.status === 410) {
         // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
-        navigate('/session-expired', { state: { reservationId } });
+        navigate('/session-expired', { state: { reservationId, accessToken } });
       } else {
         throw new Error('Failed to confirm reservation');
       }
@@ -75,36 +67,9 @@ const ReservationConfirmPage = () => {
    * P-020（予約詳細入力）へ戻る
    */
   const handleBack = () => {
-    navigate(`/reservation/${reservationId}`);
-  };
-
-  /**
-   * キャンセルボタン押下時の処理
-   * 予約ステータスをCANCELLED（30）に更新後、トップページへ遷移
-   */
-  const handleCancel = async () => {
-    if (!window.confirm(t('reservation.confirmPage.confirmCancel'))) {
-      return;
-    }
-
-    setIsCancelling(true);
-    try {
-      const res = await fetch(`/api/reservations/${reservationId}/cancel`, {
-        method: 'POST',
-      });
-
-      if (res.ok) {
-        // キャンセル成功 → トップページへ遷移
-        navigate('/');
-      } else {
-        throw new Error('Failed to cancel reservation');
-      }
-    } catch (e) {
-      console.error('Error cancelling reservation:', e);
-      alert(t('reservation.confirmPage.cancelError'));
-    } finally {
-      setIsCancelling(false);
-    }
+    navigate(
+      `/reservation/${reservationId}?token=${encodeURIComponent(accessToken)}`,
+    );
   };
 
   if (loading) {
@@ -169,7 +134,7 @@ const ReservationConfirmPage = () => {
             </dd>
 
             <dt>{t('reservation.confirmPage.arriveAt')}</dt>
-            <dd>{customerInfo.arriveAt.substring(0, 5)}</dd>
+            <dd>{reservation.arriveAt.substring(0, 5)}</dd>
           </dl>
         </section>
 

@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.hotel.domain.exception.ReservationExpiredException;
+import com.example.hotel.domain.security.ReservationAccessTokenService;
 import com.example.hotel.domain.service.ReservationService;
 import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
 import com.example.hotel.presentation.dto.reservation.CustomerRequestDto;
@@ -24,13 +25,16 @@ import lombok.extern.slf4j.Slf4j;
  *
  * 【エンドポイント】
  * - POST /api/reservations/pending : 仮予約（在庫ロック）作成
- * - GET /api/reservations/{id} : 予約情報取得
- * - POST /api/reservations/{id}/customer-info : 顧客情報登録
- * - POST /api/reservations/{id}/cancel : 予約キャンセル
+ * - GET /api/reservations/{id}?token={token} : 予約情報取得
+ * - POST /api/reservations/{id}/customer-info?token={token} : 顧客情報登録
+ * - POST /api/reservations/{id}/cancel?token={token} : 予約キャンセル
+ * - POST /api/reservations/{id}/expire?token={token} : 予約期限切れ処理
+ * - POST /api/reservations/{id}/confirm?token={token} : 予約確定
  *
  * 【セキュリティ設計】
  * - エラーレスポンスにはrequestフィールドを含めない
  * - 詳細エラー情報はログにのみ出力
+ * - HMAC-SHA256トークンによるアクセス制御（ID総当たり攻撃防止）
  */
 @RestController
 @RequestMapping("/api/reservations")
@@ -39,10 +43,13 @@ public class ReservationController {
 
   private final ReservationService reservationService;
   private final MessageSource messageSource;
+  private final ReservationAccessTokenService accessTokenService;
 
-  public ReservationController(ReservationService reservationService, MessageSource messageSource) {
+  public ReservationController(ReservationService reservationService, MessageSource messageSource,
+      ReservationAccessTokenService accessTokenService) {
     this.reservationService = reservationService;
     this.messageSource = messageSource;
+    this.accessTokenService = accessTokenService;
   }
 
   /**
@@ -97,8 +104,11 @@ public class ReservationController {
       log.info(messageSource.getMessage("log.reservation.success", new Object[]{reservationId},
           Locale.getDefault()));
 
-      // 成功時: IDを返す
-      return ResponseEntity.ok(Map.of("reservationId", reservationId));
+      // アクセストークンを生成
+      String accessToken = accessTokenService.generateToken(reservationId);
+
+      // 成功時: IDとアクセストークンを返す
+      return ResponseEntity.ok(Map.of("reservationId", reservationId, "accessToken", accessToken));
 
     }
     catch (IllegalStateException e) {
@@ -139,17 +149,29 @@ public class ReservationController {
    * 指定された予約IDに紐づく予約情報（ホテル名、部屋タイプ、
    * 宿泊日程、合計料金等）を取得する。
    *
+   * 【セキュリティ】
+   * - アクセストークンによる認可チェック必須
+   * - トークン不正時は404を返却（ID存在有無を隠蔽）
+   *
    * 【エラーハンドリング設計】
    * - 予約が存在しない場合: 404 Not Found
    * - サーバーエラー: 500 Internal Server Error
    *
    * @param id 予約ID
+   * @param token アクセストークン（HMAC-SHA256署名）
    * @return 成功時: 予約情報レスポンスDTO (200 OK)
-   *         予約未存在: 404 Not Found
+   *         予約未存在またはトークン不正: 404 Not Found
    *         エラー時: 500 Internal Server Error
    */
   @GetMapping("/{id}")
-  public ResponseEntity<ReservationResponseDto> getReservation(@PathVariable Integer id) {
+  public ResponseEntity<ReservationResponseDto> getReservation(@PathVariable Integer id,
+      @RequestParam String token) {
+    // トークン検証（不正時は404で存在有無を隠蔽）
+    if (!accessTokenService.validateToken(id, token)) {
+      log.warn("Invalid access token for reservation: id={}", id);
+      return ResponseEntity.notFound().build();
+    }
+
     try {
       ReservationResponseDto response = reservationService.getReservation(id);
       return ResponseEntity.ok(response);
@@ -178,19 +200,31 @@ public class ReservationController {
   /**
    * 仮予約に顧客情報を登録・更新（アップサート）するAPI
    *
+   * 【セキュリティ】
+   * - アクセストークンによる認可チェック必須
+   * - トークン不正時は404を返却（ID存在有無を隠蔽）
+   *
    * 【ビジネスロジック検証】
    * 1. 電話番号のフォーマット検証（入力がある場合）
    * 2. Eメールアドレスのフォーマット検証（入力がある場合）
    *
    * @param id 予約ID
+   * @param token アクセストークン（HMAC-SHA256署名）
    * @param request 顧客情報リクエストDTO
    * @return 成功時: 200 OK
+   *         トークン不正: 404 Not Found
    *         バリデーションエラー時: 422 Unprocessable Entity
    *         サーバーエラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/customer-info")
-  public ResponseEntity<?> upsertCustomerInfo(@PathVariable Integer id,
+  public ResponseEntity<?> upsertCustomerInfo(@PathVariable Integer id, @RequestParam String token,
       @Valid @RequestBody CustomerRequestDto request) {
+    // トークン検証（不正時は404で存在有無を隠蔽）
+    if (!accessTokenService.validateToken(id, token)) {
+      log.warn("Invalid access token for customer-info: id={}", id);
+      return ResponseEntity.notFound().build();
+    }
+
     try {
       // 【検証1】電話番号のフォーマット検証（入力がある場合のみ）
       if (!isBlank(request.getPhoneNumber())
@@ -275,12 +309,24 @@ public class ReservationController {
    * 条件を満たさない場合でも200 OKを返します（ベストエフォート処理）。
    * バッチ処理が最終的な整合性を保証するため、フロントエンドでのエラーハンドリングは不要です。
    *
+   * 【セキュリティ】
+   * - アクセストークンによる認可チェック必須
+   * - トークン不正時は404を返却（ID存在有無を隠蔽）
+   *
    * @param id 予約ID
+   * @param token アクセストークン（HMAC-SHA256署名）
    * @return 成功時: 200 OK
+   *         トークン不正: 404 Not Found
    *         エラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/cancel")
-  public ResponseEntity<?> cancelReservation(@PathVariable Integer id) {
+  public ResponseEntity<?> cancelReservation(@PathVariable Integer id, @RequestParam String token) {
+    // トークン検証（不正時は404で存在有無を隠蔽）
+    if (!accessTokenService.validateToken(id, token)) {
+      log.warn("Invalid access token for cancel: id={}", id);
+      return ResponseEntity.notFound().build();
+    }
+
     try {
       log.info("Cancel reservation request received: id={}", id);
       int updated = reservationService.cancelReservation(id);
@@ -305,12 +351,24 @@ public class ReservationController {
    * 条件を満たさない場合でも200 OKを返します（ベストエフォート処理）。
    * バッチ処理が最終的な整合性を保証するため、フロントエンドでのエラーハンドリングは不要です。
    *
+   * 【セキュリティ】
+   * - アクセストークンによる認可チェック必須
+   * - トークン不正時は404を返却（ID存在有無を隠蔽）
+   *
    * @param id 予約ID
+   * @param token アクセストークン（HMAC-SHA256署名）
    * @return 成功時: 200 OK
+   *         トークン不正: 404 Not Found
    *         エラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/expire")
-  public ResponseEntity<?> expireReservation(@PathVariable Integer id) {
+  public ResponseEntity<?> expireReservation(@PathVariable Integer id, @RequestParam String token) {
+    // トークン検証（不正時は404で存在有無を隠蔽）
+    if (!accessTokenService.validateToken(id, token)) {
+      log.warn("Invalid access token for expire: id={}", id);
+      return ResponseEntity.notFound().build();
+    }
+
     try {
       log.info("Expire reservation request received: id={}", id);
       int updated = reservationService.expireReservation(id);
@@ -332,13 +390,26 @@ public class ReservationController {
    * - 予約ステータスがTENTATIVE（10）
    * - pending_limit_atが現在時刻以降（まだ有効）
    *
+   * 【セキュリティ】
+   * - アクセストークンによる認可チェック必須
+   * - トークン不正時は404を返却（ID存在有無を隠蔽）
+   *
    * @param id 予約ID
+   * @param token アクセストークン（HMAC-SHA256署名）
    * @return 成功時: 200 OK
+   *         トークン不正: 404 Not Found
    *         期限切れ時: 410 Gone
    *         エラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/confirm")
-  public ResponseEntity<?> confirmReservation(@PathVariable Integer id) {
+  public ResponseEntity<?> confirmReservation(@PathVariable Integer id,
+      @RequestParam String token) {
+    // トークン検証（不正時は404で存在有無を隠蔽）
+    if (!accessTokenService.validateToken(id, token)) {
+      log.warn("Invalid access token for confirm: id={}", id);
+      return ResponseEntity.notFound().build();
+    }
+
     try {
       log.info("Confirm reservation request received: id={}", id);
       reservationService.confirmReservation(id);
