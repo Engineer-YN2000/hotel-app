@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -23,7 +23,7 @@ const ReservationInputPage = () => {
 
   const { reservation, loading, errorState } = useReservation(
     reservationId,
-    accessToken
+    accessToken,
   );
   const { isCancelling, handleCancel } = useCancelReservation(
     reservationId,
@@ -31,8 +31,15 @@ const ReservationInputPage = () => {
     {
       confirmMessage: t('reservation.inputPage.confirmCancel'),
       errorMessage: t('reservation.inputPage.cancelError'),
-    }
+    },
   );
+
+  // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへリダイレクト
+  useEffect(() => {
+    if (errorState === 'NOT_FOUND') {
+      navigate('/', { replace: true });
+    }
+  }, [errorState, navigate]);
 
   const handleSubmitCustomerInfo = async (formData) => {
     try {
@@ -48,7 +55,9 @@ const ReservationInputPage = () => {
       if (res.ok) {
         console.log(t('reservation.inputPage.processingComplete'));
         // P-030（確認画面）へ遷移（トークンを引き継ぐ）
-        navigate(`/reservation/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}`);
+        navigate(
+          `/reservation/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}`,
+        );
       } else if (res.status === 410) {
         // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
         // キャンセル処理のためreservationIdとaccessTokenを渡す
@@ -76,8 +85,7 @@ const ReservationInputPage = () => {
     return <ServerError />;
   }
   if (errorState === 'NOT_FOUND') {
-    // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへ
-    navigate('/');
+    // useEffectでリダイレクト中
     return null;
   }
 

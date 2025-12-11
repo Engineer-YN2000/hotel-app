@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ReservationSummary, ServerError } from '../../common';
@@ -31,6 +31,13 @@ const ReservationConfirmPage = () => {
   );
   const [isConfirming, setIsConfirming] = useState(false);
 
+  // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへリダイレクト
+  useEffect(() => {
+    if (errorState === 'NOT_FOUND') {
+      navigate('/', { replace: true });
+    }
+  }, [errorState, navigate]);
+
   /**
    * 予約確定ボタン押下時の処理
    * 予約ステータスをCONFIRMED（20）に更新後、完了ページへ遷移
@@ -47,7 +54,10 @@ const ReservationConfirmPage = () => {
 
       if (res.ok) {
         // P-040（予約完了）へ遷移
-        navigate(`/reservation/${reservationId}/complete`);
+        // state.fromConfirm で正規遷移であることを示す（直接URL入力防止）
+        navigate(`/reservation/${reservationId}/complete`, {
+          state: { fromConfirm: true },
+        });
       } else if (res.status === 410) {
         // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
         navigate('/session-expired', { state: { reservationId, accessToken } });
@@ -85,8 +95,7 @@ const ReservationConfirmPage = () => {
     return <ServerError />;
   }
   if (errorState === 'NOT_FOUND') {
-    // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへ
-    navigate('/');
+    // useEffectでリダイレクト中
     return null;
   }
 
@@ -134,7 +143,13 @@ const ReservationConfirmPage = () => {
             </dd>
 
             <dt>{t('reservation.confirmPage.arriveAt')}</dt>
-            <dd>{reservation.arriveAt.substring(0, 5)}</dd>
+            {/*
+              arriveAtは正規フローではnullにならない:
+              - P-020で顧客情報登録時に必ず設定される（デフォルト値 or ユーザー入力）
+              - P-030に到達する時点では必ず値が存在する
+              防御的プログラミングとしてオプショナルチェイニングを適用
+            */}
+            <dd>{reservation.arriveAt?.substring(0, 5) || '--:--'}</dd>
           </dl>
         </section>
 
