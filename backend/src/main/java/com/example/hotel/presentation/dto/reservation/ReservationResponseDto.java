@@ -18,6 +18,8 @@ public class ReservationResponseDto {
   private List<RoomDetailDto> rooms;
   private Integer totalFee;
 
+  private CustomerInfoDto customerInfo;
+
   @Data
   @AllArgsConstructor
   @NoArgsConstructor
@@ -26,5 +28,16 @@ public class ReservationResponseDto {
     private String roomTypeName;
     private Integer roomCapacity;
     private Integer roomCount;
+  }
+
+  @Data
+  @AllArgsConstructor
+  @NoArgsConstructor
+  public static class CustomerInfoDto {
+    private String reserverFirstName;
+    private String reserverLastName;
+    private String phoneNumber;
+    private String emailAddress;
+    private String arriveAt;
   }
 }

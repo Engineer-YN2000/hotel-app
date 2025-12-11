@@ -1,7 +1,7 @@
 package com.example.hotel.domain.repository;
 
 import com.example.hotel.domain.model.Reservation;
-import com.example.hotel.domain.model.ReservationWithRoomInfo;
+import com.example.hotel.domain.model.ReservationWithInfo;
 
 import org.seasar.doma.Dao;
 import org.seasar.doma.Insert;
@@ -88,24 +88,35 @@ public interface ReservationDao {
   @Select
   boolean isExpired(Integer reservationId, Integer tentativeStatus);
 
+  /**
+   * 予約IDとステータスを指定して予約情報を取得します。
+   *
+   * @param reservationId 予約ID
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @return 予約情報リスト（該当なしの場合は空リスト）
+   */
   @Select
-  List<ReservationWithRoomInfo> selectByIdWithDetails(Integer reservationId);
+  List<ReservationWithInfo> selectByIdWithDetails(Integer reservationId, Integer tentativeStatus);
 
   @Select
   Integer selectReserverId(Integer reservationId);
 
   /**
-   * 予約ステータスを更新します。
+   * 仮予約をキャンセル（CANCELLEDステータス）に更新します。
    *
-   * 指定された予約IDの予約ステータスを新しいステータスに更新します。
-   * キャンセル処理などで使用されます。
+   * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以降の場合のみ更新します。
+   * P-020（予約詳細入力）のキャンセルボタン押下時に使用されます。
+   *
+   * 条件を満たさない場合（既にタイムアウト済み、バッチで処理済み等）は更新件数0を返します。
+   * これはベストエフォートの処理であり、バッチ処理が最終的な整合性を保証します。
    *
    * @param reservationId 予約ID
-   * @param newStatus 新しい予約ステータス（ReservationStatus定数値）
-   * @return 更新件数（0の場合は対象レコードなし）
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @param cancelledStatus キャンセルステータス（ReservationStatus.CANCELLEDを指定）
+   * @return 更新件数（0の場合は対象レコードなしまたは条件不一致）
    */
   @Update(sqlFile = true)
-  int updateStatus(Integer reservationId, Integer newStatus);
+  int cancelReservation(Integer reservationId, Integer tentativeStatus, Integer cancelledStatus);
 
   /**
    * 仮予約を期限切れ（EXPIRED）ステータスに更新します。
@@ -120,4 +131,18 @@ public interface ReservationDao {
    */
   @Update(sqlFile = true)
   int expireReservation(Integer reservationId, Integer tentativeStatus, Integer expiredStatus);
+
+  /**
+   * 仮予約を確定（CONFIRMEDステータス）に更新します。
+   *
+   * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以降の場合のみ更新します。
+   * P-030（予約確認）の確定ボタン押下時に使用されます。
+   *
+   * @param reservationId 予約ID
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @param confirmedStatus 確定ステータス（ReservationStatus.CONFIRMEDを指定）
+   * @return 更新件数（0の場合は対象レコードなしまたは条件不一致）
+   */
+  @Update(sqlFile = true)
+  int confirmReservation(Integer reservationId, Integer tentativeStatus, Integer confirmedStatus);
 }

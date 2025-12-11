@@ -265,10 +265,15 @@ public class ReservationController {
   }
 
   /**
-   * 予約をキャンセルするAPI
+   * 仮予約をキャンセルするAPI
    *
-   * 指定された予約IDの予約ステータスをCANCELLED（30）に更新します。
-   * キャンセルボタン押下時にフロントエンドから呼び出されます。
+   * P-020（予約詳細入力）のキャンセルボタン押下時に呼び出されます。
+   * 以下の条件を満たす場合のみステータス30（CANCELLED）に更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以降（まだ有効）
+   *
+   * 条件を満たさない場合でも200 OKを返します（ベストエフォート処理）。
+   * バッチ処理が最終的な整合性を保証するため、フロントエンドでのエラーハンドリングは不要です。
    *
    * @param id 予約ID
    * @return 成功時: 200 OK
@@ -278,14 +283,9 @@ public class ReservationController {
   public ResponseEntity<?> cancelReservation(@PathVariable Integer id) {
     try {
       log.info("Cancel reservation request received: id={}", id);
-      reservationService.cancelReservation(id);
-      log.info("Reservation cancelled successfully: id={}", id);
+      int updated = reservationService.cancelReservation(id);
+      log.info("Cancel reservation completed: id={}, updated={}", id, updated);
       return ResponseEntity.ok().build();
-    }
-    catch (IllegalArgumentException e) {
-      // 予約が見つからない場合
-      log.warn("Reservation not found for cancel: id={}, message={}", id, e.getMessage());
-      return ResponseEntity.notFound().build();
     }
     catch (Exception e) {
       // サーバーエラー
@@ -320,6 +320,48 @@ public class ReservationController {
     catch (Exception e) {
       // サーバーエラー
       log.error("Unexpected error during reservation expire: id={}", id, e);
+      return ResponseEntity.internalServerError().build();
+    }
+  }
+
+  /**
+   * 仮予約を確定（CONFIRMED）ステータスに更新するAPI
+   *
+   * P-030（予約確認）の確定ボタン押下時に呼び出されます。
+   * 以下の条件を満たす場合のみステータス20（CONFIRMED）に更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以降（まだ有効）
+   *
+   * @param id 予約ID
+   * @return 成功時: 200 OK
+   *         期限切れ時: 410 Gone
+   *         エラー時: 500 Internal Server Error
+   */
+  @PostMapping("/{id}/confirm")
+  public ResponseEntity<?> confirmReservation(@PathVariable Integer id) {
+    try {
+      log.info("Confirm reservation request received: id={}", id);
+      reservationService.confirmReservation(id);
+      log.info("Confirm reservation completed: id={}", id);
+      return ResponseEntity.ok().build();
+    }
+    catch (ReservationExpiredException e) {
+      // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる
+      log.warn(messageSource.getMessage("log.customer.violation.expired",
+          new Object[]{e.getReservationId(), e.getMessage()}, Locale.getDefault()));
+      // フロントエンドで期限切れを識別できるようにerrorコードを返却
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("RESERVATION_EXPIRED", 410,
+          "/api/reservations/" + id + "/confirm");
+      return ResponseEntity.status(HttpStatus.GONE).body(errorResponse);
+    }
+    catch (IllegalStateException e) {
+      // 更新失敗（期限切れ以外のビジネスエラー）
+      log.warn(messageSource.getMessage("log.reservation.violation.state",
+          new Object[]{e.getMessage(), id}, Locale.getDefault()));
+      return ResponseEntity.internalServerError().build();
+    }
+    catch (Exception e) {
+      log.error("Unexpected error during reservation confirm: id={}", id, e);
       return ResponseEntity.internalServerError().build();
     }
   }

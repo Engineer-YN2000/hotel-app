@@ -15,7 +15,7 @@ import com.example.hotel.utils.PriceCalculator;
 import com.example.hotel.domain.model.Reservation;
 import com.example.hotel.domain.model.ReservationDetail;
 import com.example.hotel.domain.model.RoomStockInfo;
-import com.example.hotel.domain.model.ReservationWithRoomInfo;
+import com.example.hotel.domain.model.ReservationWithInfo;
 import com.example.hotel.domain.model.Reserver;
 import com.example.hotel.domain.constants.ReservationStatus;
 import com.example.hotel.domain.exception.ReservationExpiredException;
@@ -136,29 +136,42 @@ public class ReservationService {
    * ホテル名、部屋タイプ情報、合計料金を含む
    * レスポンスDTOを構築して返却する。
    *
+   * 【ステータス制限】
+   * TENTATIVE（10）ステータスの予約のみ取得可能。
+   * キャンセル済みや確定済みの予約は取得できない。
+   *
    * @param reservationId 予約ID
    * @return 予約情報レスポンスDTO
    * @throws IllegalArgumentException 指定された予約IDの予約が存在しない場合
    */
   public ReservationResponseDto getReservation(Integer reservationId) {
-    List<ReservationWithRoomInfo> rawList = reservationDao.selectByIdWithDetails(reservationId);
+    List<ReservationWithInfo> rawList = reservationDao.selectByIdWithDetails(reservationId,
+        ReservationStatus.TENTATIVE);
 
     if (rawList.isEmpty()) {
       throw new IllegalArgumentException(
           messageSource.getMessage("error.reservation.notfound", null, null));
     }
 
-    ReservationWithRoomInfo first = rawList.get(0);
+    ReservationWithInfo first = rawList.get(0);
 
-    int totalFee = rawList.stream().mapToInt(ReservationWithRoomInfo::getHowMuch).sum();
+    int totalFee = rawList.stream().mapToInt(ReservationWithInfo::getHowMuch).sum();
 
     List<ReservationResponseDto.RoomDetailDto> rooms = rawList
         .stream().map(r -> new ReservationResponseDto.RoomDetailDto(r.getRoomTypeId(),
             r.getRoomTypeName(), r.getRoomCapacity(), r.getRoomCount()))
         .collect(Collectors.toList());
 
+    // 顧客情報をDTOに変換（予約者が未登録の場合はnull）
+    ReservationResponseDto.CustomerInfoDto customerInfo = null;
+    if (first.getReserverFirstName() != null || first.getReserverLastName() != null) {
+      customerInfo = new ReservationResponseDto.CustomerInfoDto(first.getReserverFirstName(),
+          first.getReserverLastName(), first.getPhoneNumber(), first.getEmailAddress(),
+          first.getArriveAt());
+    }
+
     return new ReservationResponseDto(first.getReservationId(), first.getCheckInDate(),
-        first.getCheckOutDate(), first.getHotelName(), rooms, totalFee);
+        first.getCheckOutDate(), first.getHotelName(), rooms, totalFee, customerInfo);
   }
 
   /**
@@ -227,22 +240,31 @@ public class ReservationService {
   }
 
   /**
-   * 予約をキャンセルします。
+   * 仮予約をキャンセルします。
    *
-   * 指定された予約IDの予約ステータスをCANCELLED（30）に更新します。
-   * 仮予約状態（TENTATIVE）からのキャンセルを想定しています。
+   * P-020（予約詳細入力）のキャンセルボタン押下時に呼び出されます。
+   * 以下の条件を満たす場合のみ更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以降（まだ有効）
+   *
+   * 条件を満たさない場合（既にタイムアウト済み、バッチで処理済み等）は更新件数0を返します。
+   * これはベストエフォートの処理であり、バッチ処理が最終的な整合性を保証します。
    *
    * @param reservationId キャンセルする予約ID
-   * @throws IllegalArgumentException 予約が見つからない場合
+   * @return 更新件数（条件を満たさない場合は0）
    */
   @Transactional(rollbackFor = Exception.class)
-  public void cancelReservation(Integer reservationId) {
-    int updated = reservationDao.updateStatus(reservationId, ReservationStatus.CANCELLED);
-    if (updated == 0) {
-      throw new IllegalArgumentException(
-          messageSource.getMessage("error.reservation.notfound", null, null));
+  public int cancelReservation(Integer reservationId) {
+    int updated = reservationDao.cancelReservation(reservationId, ReservationStatus.TENTATIVE,
+        ReservationStatus.CANCELLED);
+    if (updated > 0) {
+      log.info("Reservation cancelled: id={}", reservationId);
     }
-    log.info("Reservation cancelled: id={}", reservationId);
+    else {
+      log.info("Reservation not cancelled (already processed or not eligible): id={}",
+          reservationId);
+    }
+    return updated;
   }
 
   /**
@@ -270,5 +292,42 @@ public class ReservationService {
       log.info("Reservation not expired (already processed or not eligible): id={}", reservationId);
     }
     return updated;
+  }
+
+  /**
+   * 仮予約を確定（CONFIRMEDステータス）に更新します。
+   *
+   * P-030（予約確認）の確定ボタン押下時に呼び出されます。
+   * 以下の条件を満たす場合のみ更新します:
+   * - 予約ステータスがTENTATIVE（10）
+   * - pending_limit_atが現在時刻以前（まだ有効）
+   *
+   * @param reservationId 確定する予約ID
+   * @throws ReservationExpiredException 仮予約の有効期限切れ時
+   * @throws IllegalStateException 更新失敗時
+   */
+  @Transactional(rollbackFor = Exception.class)
+  public void confirmReservation(Integer reservationId) {
+    // 事前の期限切れチェック（早期エラー返却用）
+    if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
+      throw new ReservationExpiredException(
+          messageSource.getMessage("error.reservation.expired", null, null), reservationId);
+    }
+
+    // 【TOCTOU競合対策】SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
+    // 検証と更新を原子的に実行
+    int updated = reservationDao.confirmReservation(reservationId, ReservationStatus.TENTATIVE,
+        ReservationStatus.CONFIRMED);
+    if (updated == 0) {
+      // 更新失敗時は期限切れを再確認して適切な例外をスロー
+      if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
+        throw new ReservationExpiredException(
+            messageSource.getMessage("error.reservation.expired", null, null), reservationId);
+      }
+      // 期限切れ以外の原因（予約が存在しない、ステータスが変更された等）
+      throw new IllegalStateException(
+          messageSource.getMessage("error.reservation.update.failed", null, null));
+    }
+    log.info("Reservation confirmed: id={}", reservationId);
   }
 }

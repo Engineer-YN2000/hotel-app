@@ -1,6 +1,6 @@
 /**
  * 予約ページ用メッセージ
- * 使用コンポーネント: ReservationInputPage, ReservationSummary, CustomerInputForm
+ * 使用コンポーネント: ReservationInputPage, ReservationConfirmPage, ReservationCompletePage, ReservationSummary, CustomerInputForm
  */
 export const reservationMessages = {
   ja: {
@@ -21,12 +21,32 @@ export const reservationMessages = {
       // P-030 予約確認ページ
       confirmPage: {
         title: '予約内容確認',
-        dummyMessage:
-          'このページは現在開発中です。本番実装時に予約内容の全詳細が表示されます。',
-        reservationId: '予約ID',
-        backButton: '戻る',
+        loading: '読み込み中...',
+        notFound: '予約が見つかりません。',
+        instruction:
+          '以下の内容で予約を確定します。よろしければ「予約を確定する」ボタンを押してください。',
+        customerInfoTitle: '宿泊者情報',
+        guestName: '氏名',
+        honorific: '様',
+        phoneNumber: '電話番号',
+        emailAddress: 'Eメール',
+        arriveAt: '到着予定時刻',
+        notRegistered: '（未登録）',
+        backButton: '修正する',
         confirmButton: '予約を確定する',
-        confirmNotImplemented: '予約確定機能は未実装です。',
+        confirmingButton: '確定中...',
+        confirmError: '予約の確定に失敗しました。再度お試しください。',
+        cancelButton: 'キャンセル',
+        cancellingButton: 'キャンセル中...',
+        confirmCancel: 'この予約をキャンセルしてトップページへ戻りますか？',
+        cancelError: '予約のキャンセルに失敗しました。',
+      },
+      // P-040 予約完了ページ
+      completePage: {
+        title: '予約完了',
+        thankYou: 'ご予約ありがとうございました',
+        confirmedMessage: '以下の通り、ご予約を承りました。',
+        reservationId: '予約ID',
       },
       // C-021 予約サマリー
       summary: {
@@ -88,13 +108,32 @@ export const reservationMessages = {
       // P-030 Reservation Confirmation Page
       confirmPage: {
         title: 'Confirm Reservation',
-        dummyMessage:
-          'This page is currently under development. Full reservation details will be displayed in the final implementation.',
-        reservationId: 'Reservation ID',
-        backButton: 'Back',
+        loading: 'Loading...',
+        notFound: 'Reservation not found.',
+        instruction:
+          'Please review your reservation details below. Click "Confirm Reservation" to complete your booking.',
+        customerInfoTitle: 'Guest Information',
+        guestName: 'Name',
+        honorific: '',
+        phoneNumber: 'Phone Number',
+        emailAddress: 'Email',
+        arriveAt: 'Estimated Arrival Time',
+        notRegistered: '(Not registered)',
+        backButton: 'Edit',
         confirmButton: 'Confirm Reservation',
-        confirmNotImplemented:
-          'Reservation confirmation feature is not implemented yet.',
+        confirmingButton: 'Confirming...',
+        confirmError: 'Failed to confirm reservation. Please try again.',
+        cancelButton: 'Cancel',
+        cancellingButton: 'Cancelling...',
+        confirmCancel: 'Cancel this reservation and return to the top page?',
+        cancelError: 'Failed to cancel the reservation.',
+      },
+      // P-040 Reservation Complete Page
+      completePage: {
+        title: 'Reservation Complete',
+        thankYou: 'Thank you for your reservation',
+        confirmedMessage: 'Your reservation has been confirmed as follows.',
+        reservationId: 'Reservation ID',
       },
       // C-021 Reservation Summary
       summary: {

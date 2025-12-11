@@ -9,6 +9,7 @@ import {
   TopPage,
   ReservationInputPage,
   ReservationConfirmPage,
+  ReservationCompletePage,
 } from './components/pages';
 
 function App() {
@@ -26,6 +27,10 @@ function App() {
               <Route
                 path="/reservation/:reservationId/confirm"
                 element={<ReservationConfirmPage />}
+              />
+              <Route
+                path="/reservation/:reservationId/complete"
+                element={<ReservationCompletePage />}
               />
               <Route path="/server-error" element={<ServerError />} />
               <Route

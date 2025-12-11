@@ -1,4 +1,4 @@
-import React, { useReducer } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import './CustomerInputForm.css';
 
@@ -35,6 +35,8 @@ const formReducer = (state, action) => {
       };
     case 'SET_ERRORS':
       return { ...state, errors: action.errors };
+    case 'INIT_FORM':
+      return { ...state, ...action.data, errors: {} };
     default:
       return state;
   }
@@ -45,9 +47,29 @@ const CustomerInputForm = ({
   onCancel,
   isSubmitting,
   isCancelling,
+  initialData,
 }) => {
   const { t } = useTranslation();
   const [state, dispatch] = useReducer(formReducer, initialState);
+
+  // 初期データがある場合はフォームにセット
+  useEffect(() => {
+    if (initialData) {
+      dispatch({
+        type: 'INIT_FORM',
+        data: {
+          givenName: initialData.reserverFirstName || '',
+          familyName: initialData.reserverLastName || '',
+          emailAddress: initialData.emailAddress || '',
+          phoneNumber: initialData.phoneNumber || '',
+          // arriveAtはHH:mm:ss形式で返ってくるのでHH:mmに変換
+          arriveAt: initialData.arriveAt
+            ? initialData.arriveAt.substring(0, 5)
+            : '',
+        },
+      });
+    }
+  }, [initialData]);
 
   // 表示順序を取得（familyFirst または givenFirst）
   const nameDisplayOrder = t('reservation.customerForm.nameDisplayOrder');

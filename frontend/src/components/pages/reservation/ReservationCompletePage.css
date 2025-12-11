@@ -1,0 +1,143 @@
+/**
+ * P-040 予約完了ページ スタイル
+ * P-020/P-030とのデザイン統一を意識
+ */
+
+/* --- ページレイアウト --- */
+.reservation-complete-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px;
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.reservation-complete-page header {
+  border-bottom: 2px solid #eee;
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.reservation-complete-page header h1 {
+  font-size: 1.5rem;
+  color: #005a9c;
+  margin: 0;
+  text-align: center;
+}
+
+.reservation-complete-page main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+}
+
+/* --- 成功メッセージボックス --- */
+.success-message-box {
+  background-color: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.success-icon {
+  width: 60px;
+  height: 60px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-size: 2rem;
+  color: white;
+}
+
+.success-message-box h2 {
+  color: #166534;
+  font-size: 1.4rem;
+  margin: 0 0 16px 0;
+}
+
+.success-message-box p {
+  color: #555;
+  margin: 8px 0;
+}
+
+.reservation-id-display {
+  font-size: 1.2rem;
+  margin-top: 20px !important;
+  padding: 12px 20px;
+  background-color: #dcfce7;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.reservation-id-display strong {
+  color: #166534;
+  font-size: 1.4rem;
+}
+
+/* --- ボタンコンテナ --- */
+.reservation-complete-page .button-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.reservation-complete-page .btn {
+  padding: 12px 40px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
+}
+
+.reservation-complete-page .btn:hover {
+  transform: translateY(-1px);
+}
+
+.reservation-complete-page .btn:active {
+  transform: translateY(0);
+}
+
+.reservation-complete-page .btn-primary {
+  background-color: #007bff;
+  color: white;
+}
+
+.reservation-complete-page .btn-primary:hover {
+  background-color: #0056b3;
+}
+
+/* --- レスポンシブ対応 --- */
+@media (max-width: 640px) {
+  .reservation-complete-page {
+    padding: 12px;
+  }
+
+  .reservation-complete-page header h1 {
+    font-size: 1.25rem;
+  }
+
+  .success-message-box {
+    padding: 24px 16px;
+  }
+
+  .success-icon {
+    width: 50px;
+    height: 50px;
+    font-size: 1.6rem;
+  }
+
+  .success-message-box h2 {
+    font-size: 1.2rem;
+  }
+}

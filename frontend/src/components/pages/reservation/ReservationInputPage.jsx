@@ -119,13 +119,9 @@ const ReservationInputPage = () => {
     return <ServerError />;
   }
   if (errorState === 'NOT_FOUND') {
-    return (
-      <div className="reservation-input-page">
-        <div className="not-found-container">
-          {t('reservation.inputPage.notFound')}
-        </div>
-      </div>
-    );
+    // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへ
+    navigate('/');
+    return null;
   }
 
   return (
@@ -139,6 +135,7 @@ const ReservationInputPage = () => {
           onSubmit={handleSubmitCustomerInfo}
           onCancel={handleCancel}
           isCancelling={isCancelling}
+          initialData={reservation?.customerInfo}
         />
       </main>
     </div>
