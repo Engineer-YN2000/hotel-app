@@ -300,7 +300,7 @@ public class ReservationService {
    * P-030（予約確認）の確定ボタン押下時に呼び出されます。
    * 以下の条件を満たす場合のみ更新します:
    * - 予約ステータスがTENTATIVE（10）
-   * - pending_limit_atが現在時刻以前（まだ有効）
+   * - pending_limit_atが現在時刻以降（まだ有効）
    *
    * @param reservationId 確定する予約ID
    * @throws ReservationExpiredException 仮予約の有効期限切れ時

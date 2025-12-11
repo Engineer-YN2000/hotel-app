@@ -96,10 +96,6 @@ const ReservationConfirmPage = () => {
       if (res.ok) {
         // キャンセル成功 → トップページへ遷移
         navigate('/');
-      } else if (res.status === 404) {
-        // 予約が見つからない場合もトップページへ遷移
-        console.warn('Reservation not found, navigating to top page');
-        navigate('/');
       } else {
         throw new Error('Failed to cancel reservation');
       }
@@ -131,6 +127,13 @@ const ReservationConfirmPage = () => {
 
   const customerInfo = reservation?.customerInfo;
 
+  // 名前の表示順序を言語設定に応じて決定
+  const nameDisplayOrder = t('reservation.customerForm.nameDisplayOrder');
+  const isFamilyFirst = nameDisplayOrder === 'familyFirst';
+  const displayName = isFamilyFirst
+    ? `${customerInfo?.reserverLastName} ${customerInfo?.reserverFirstName}`
+    : `${customerInfo?.reserverFirstName} ${customerInfo?.reserverLastName}`;
+
   return (
     <div className="reservation-confirm-page">
       <header>
@@ -150,8 +153,7 @@ const ReservationConfirmPage = () => {
           <dl className="confirm-list">
             <dt>{t('reservation.confirmPage.guestName')}</dt>
             <dd>
-              {customerInfo?.reserverLastName} {customerInfo?.reserverFirstName}{' '}
-              {t('reservation.confirmPage.honorific')}
+              {displayName} {t('reservation.confirmPage.honorific')}
             </dd>
 
             <dt>{t('reservation.confirmPage.phoneNumber')}</dt>
@@ -167,11 +169,7 @@ const ReservationConfirmPage = () => {
             </dd>
 
             <dt>{t('reservation.confirmPage.arriveAt')}</dt>
-            <dd>
-              {customerInfo?.arriveAt
-                ? customerInfo.arriveAt.substring(0, 5)
-                : ''}
-            </dd>
+            <dd>{customerInfo.arriveAt.substring(0, 5)}</dd>
           </dl>
         </section>
 

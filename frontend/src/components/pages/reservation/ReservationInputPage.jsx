@@ -91,10 +91,6 @@ const ReservationInputPage = () => {
       if (res.ok) {
         // キャンセル成功 → トップページへ遷移
         navigate('/');
-      } else if (res.status === 404) {
-        // 予約が見つからない場合もトップページへ遷移
-        console.warn('Reservation not found, navigating to top page');
-        navigate('/');
       } else {
         throw new Error('Failed to cancel reservation');
       }
