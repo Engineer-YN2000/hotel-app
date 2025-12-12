@@ -44,6 +44,27 @@ import lombok.extern.slf4j.Slf4j;
  * 仮予約作成時は悲観的ロックを使用し、
  * ダブルブッキングを防止する。
  *
+ * 【三層防御の設計意図】
+ * 以下のメソッドでは期限切れ検証を3段階で行っている。これは冗長に見えるが、
+ * それぞれ異なる目的を持つ意図的な設計である：
+ * - {@link #upsertCustomerInfo(Integer, CustomerRequestDto)}
+ * - {@link #confirmReservation(Integer)}
+ *
+ * 1. 事前チェック（早期リターン）
+ *    - 目的: Fail Fast原則に基づき、無効なリクエストを即座に拒否
+ *    - 効果: 期限切れ予約に対する無駄なDB更新処理を回避し、リソースを節約
+ *    - 意図: 「期限切れ予約に更新ロジックを働かせること自体がおかしい」という設計思想
+ *
+ * 2. 原子的更新（WHERE句に期限条件）
+ *    - 目的: TOCTOU（Time-of-check to time-of-use）競合への安全弁
+ *    - 効果: 事前チェック後〜UPDATE実行までの間に期限切れになるケースを防御
+ *    - 意図: レースコンディション対策としての最終防御ライン
+ *
+ * 3. 事後チェック（更新件数0時の再検証）
+ *    - 目的: エラー原因の細分化と適切な例外選択
+ *    - 効果: 期限切れ（ReservationExpiredException）と他の原因（IllegalStateException）を区別
+ *    - 意図: クライアントに正確なエラー情報を返し、適切なUXを提供
+ *
  * @see ReservationDao 予約データアクセス
  * @see ReservationDetailDao 予約明細データアクセス
  */
@@ -161,9 +182,16 @@ public class ReservationService {
    *
    * @param reservationId 予約ID
    * @param sessionToken 検証対象のセッショントークン
+   * @throws IllegalArgumentException sessionTokenがnullまたは空の場合
    * @throws SessionTokenMismatchException トークンが不一致または無効な場合
    */
   public void validateSessionToken(Integer reservationId, String sessionToken) {
+    // 入力検証: null/空のトークンは明確なエラーレスポンスを返す
+    if (sessionToken == null || sessionToken.isBlank()) {
+      throw new IllegalArgumentException(
+          messageSource.getMessage("error.session.token.required", null, null));
+    }
+
     // HMACベースのトークン検証（有効期限10分もここでチェック）
     if (!sessionTokenService.validateToken(reservationId, sessionToken)) {
       throw new SessionTokenMismatchException(
@@ -230,24 +258,7 @@ public class ReservationService {
    * 3. 予約レコードに予約者IDと到着予定時刻を更新（原子的更新）
    * 4. 更新失敗時はエラー原因を特定（事後検証）
    *
-   * 【三層防御の設計意図】
-   * 本メソッドでは期限切れ検証を3段階で行っている。これは冗長に見えるが、
-   * それぞれ異なる目的を持つ意図的な設計である：
-   *
-   * 1. 事前チェック（早期リターン）:
-   *    - 目的: Fail Fast原則に基づき、無効なリクエストを即座に拒否
-   *    - 効果: 期限切れ予約に対する無駄なDB更新処理を回避し、リソースを節約
-   *    - 意図: 「期限切れ予約に更新ロジックを働かせること自体がおかしい」という設計思想
-   *
-   * 2. 原子的更新（WHERE句に期限条件）:
-   *    - 目的: TOCTOU（Time-of-check to time-of-use）競合への安全弁
-   *    - 効果: 事前チェック後〜UPDATE実行までの間に期限切れになるケースを防御
-   *    - 意図: レースコンディション対策としての最終防御ライン
-   *
-   * 3. 事後チェック（更新件数0時の再検証）:
-   *    - 目的: エラー原因の細分化と適切な例外選択
-   *    - 効果: 期限切れ（ReservationExpiredException）と他の原因（IllegalStateException）を区別
-   *    - 意図: クライアントに正確なエラー情報を返し、適切なUXを提供
+   * 本メソッドは三層防御パターンを採用しています。設計意図はクラスJavadocを参照してください。
    *
    * @param reservationId 予約ID
    * @param request 顧客情報リクエストDTO
@@ -316,8 +327,21 @@ public class ReservationService {
    * - 予約ステータスがTENTATIVE（10）
    * - pending_limit_atが現在時刻以降（まだ有効）
    *
-   * 条件を満たさない場合（既にタイムアウト済み、バッチで処理済み等）は更新件数0を返します。
-   * これはベストエフォートの処理であり、バッチ処理が最終的な整合性を保証します。
+   * 【ベストエフォート方式を採用する理由】
+   * 本メソッドは{@link #confirmReservation}と異なり、例外をスローせず更新件数を返す。
+   * この設計差異は以下の理由による：
+   *
+   * 1. ユーザー体験の観点:
+   *    - キャンセルはユーザーが「やめる」操作であり、結果が同じ（予約が無効化）なら成功とみなせる
+   *    - 既にタイムアウトやバッチ処理で無効化されていても、ユーザーの目的は達成されている
+   *    - エラー表示でユーザーを混乱させる必要がない
+   *
+   * 2. バッチ処理との共存:
+   *    - バッチ処理が定期的に期限切れ予約を整理するため、最終的な整合性は保証される
+   *    - フロントエンドからのキャンセルは「早期クリーンアップ」の位置づけ
+   *
+   * 対照的に、{@link #confirmReservation}は予約確定という重要な操作であり、
+   * 失敗時はユーザーに明確なフィードバックを返す必要があるため、例外をスローする。
    *
    * @param reservationId キャンセルする予約ID
    * @return 更新件数（条件を満たさない場合は0）
@@ -344,8 +368,11 @@ public class ReservationService {
    * - 予約ステータスがTENTATIVE（10）
    * - pending_limit_atが現在時刻以前（タイムアウト済み）
    *
-   * 条件を満たさない場合（既に別ステータス、バッチで処理済み等）は更新件数0を返します。
-   * これはベストエフォートの処理であり、バッチ処理が最終的な整合性を保証します。
+   * 【ベストエフォート方式を採用する理由】
+   * {@link #cancelReservation}と同様に、本メソッドは例外をスローせず更新件数を返す。
+   * 期限切れ画面からの遷移は「後始末」の操作であり、既にバッチ処理でステータスが
+   * 変更されていてもユーザー体験に影響しない。
+   * 詳細は{@link #cancelReservation}のドキュメントを参照。
    *
    * @param reservationId 期限切れにする予約ID
    * @return 更新件数（条件を満たさない場合は0）
@@ -371,24 +398,21 @@ public class ReservationService {
    * - 予約ステータスがTENTATIVE（10）
    * - pending_limit_atが現在時刻以降（まだ有効）
    *
-   * 【三層防御の設計意図】
-   * 本メソッドでは期限切れ検証を3段階で行っている。これは冗長に見えるが、
-   * それぞれ異なる目的を持つ意図的な設計である：
+   * 【厳密なバリデーションを行う理由】
+   * 本メソッドは{@link #cancelReservation}や{@link #expireReservation}と異なり、
+   * 失敗時に例外をスローする。この設計差異は以下の理由による：
    *
-   * 1. 事前チェック（早期リターン）:
-   *    - 目的: Fail Fast原則に基づき、無効なリクエストを即座に拒否
-   *    - 効果: 期限切れ予約に対する無駄なDB更新処理を回避し、リソースを節約
-   *    - 意図: 「期限切れ予約に更新ロジックを働かせること自体がおかしい」という設計思想
+   * 1. 操作の重要性:
+   *    - 予約確定はユーザーが「予約を完了した」と認識する重要な操作
+   *    - 失敗した場合、ユーザーは「予約が取れた」と誤認するリスクがある
+   *    - 明確なエラーフィードバックが必要
    *
-   * 2. 原子的更新（WHERE句に期限条件）:
-   *    - 目的: TOCTOU（Time-of-check to time-of-use）競合への安全弁
-   *    - 効果: 事前チェック後〜UPDATE実行までの間に期限切れになるケースを防御
-   *    - 意図: レースコンディション対策としての最終防御ライン
+   * 2. エラー原因の特定:
+   *    - 期限切れの場合は再度予約を促す専用画面へ遷移
+   *    - 顧客情報未登録の場合は入力画面へ戻す
+   *    - ベストエフォートではこのような分岐ができない
    *
-   * 3. 事後チェック（更新件数0時の再検証）:
-   *    - 目的: エラー原因の細分化と適切な例外選択
-   *    - 効果: 期限切れ（ReservationExpiredException）と他の原因（IllegalStateException）を区別
-   *    - 意図: クライアントに正確なエラー情報を返し、適切なUXを提供
+   * 本メソッドは三層防御パターンを採用しています。設計意図はクラスJavadocを参照してください。
    *
    * @param reservationId 確定する予約ID
    * @throws ReservationExpiredException 仮予約の有効期限切れ時
