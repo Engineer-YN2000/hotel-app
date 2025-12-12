@@ -1,27 +1,122 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { ReservationSummary, ServerError } from '../../common';
+import useReservation from '../../../hooks/useReservation';
+import useCancelReservation from '../../../hooks/useCancelReservation';
 import './ReservationConfirmPage.css';
 
 /**
- * P-030 予約確認ページ（ダミー実装）
- *
- * 顧客情報入力完了後に遷移する確認ページ。
- * 本格実装時は予約情報の全詳細を表示し、最終確定ボタンを配置する。
+ * P-030 予約確認ページ
+ * 予約内容と顧客情報を確認し、予約を確定する。
  */
 const ReservationConfirmPage = () => {
   const { t } = useTranslation();
   const { reservationId } = useParams();
+  const [searchParams] = useSearchParams();
+  const accessToken = searchParams.get('token');
+  const sessionToken = searchParams.get('sessionToken');
   const navigate = useNavigate();
 
-  const handleBack = () => {
-    navigate(`/reservation/${reservationId}`);
+  const { reservation, loading, errorState } = useReservation(
+    reservationId,
+    accessToken,
+  );
+  const { isCancelling, handleCancel } = useCancelReservation(
+    reservationId,
+    accessToken,
+    sessionToken,
+    {
+      confirmMessage: t('reservation.confirmPage.confirmCancel'),
+      errorMessage: t('reservation.confirmPage.cancelError'),
+    },
+  );
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  // 無効な予約IDまたはTENTATIVE以外のステータス → トップページへリダイレクト
+  useEffect(() => {
+    if (errorState === 'NOT_FOUND') {
+      navigate('/', { replace: true });
+    }
+  }, [errorState, navigate]);
+
+  /**
+   * 予約確定ボタン押下時の処理
+   * 予約ステータスをCONFIRMED（20）に更新後、完了ページへ遷移
+   */
+  const handleConfirm = async () => {
+    setIsConfirming(true);
+    try {
+      const res = await fetch(
+        `/api/reservations/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
+        {
+          method: 'POST',
+        },
+      );
+
+      if (res.ok) {
+        // P-040（予約完了）へ遷移
+        // state.fromConfirm で正規遷移であることを示す（直接URL入力防止）
+        navigate(`/reservation/${reservationId}/complete`, {
+          state: { fromConfirm: true },
+        });
+      } else if (res.status === 409) {
+        // 409 Conflict: セッショントークン不一致（別タブ/端末からの操作検出）
+        alert(t('reservation.confirmPage.sessionConflict'));
+        navigate('/', { replace: true });
+      } else if (res.status === 410) {
+        // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
+        navigate('/session-expired', { state: { reservationId, accessToken } });
+      } else {
+        throw new Error('Failed to confirm reservation');
+      }
+    } catch (e) {
+      console.error('Error confirming reservation:', e);
+      alert(t('reservation.confirmPage.confirmError'));
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
-  const handleConfirm = () => {
-    // TODO: 本格実装時は予約確定APIを呼び出す
-    alert(t('reservation.confirmPage.confirmNotImplemented'));
+  /**
+   * 戻るボタン押下時の処理
+   * P-020（予約詳細入力）へ戻る
+   */
+  const handleBack = () => {
+    navigate(
+      `/reservation/${reservationId}?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
+    );
   };
+
+  if (loading) {
+    return (
+      <div className="reservation-confirm-page">
+        <div className="loading-container">
+          {t('reservation.confirmPage.loading')}
+        </div>
+      </div>
+    );
+  }
+  if (errorState === 'SERVER_ERROR') {
+    return <ServerError />;
+  }
+  if (errorState === 'NOT_FOUND') {
+    // useEffectでリダイレクト中
+    return null;
+  }
+
+  const customerInfo = reservation?.customerInfo;
+
+  // 名前の表示順序を言語設定に応じて決定
+  // 【防御的プログラミング】正規フローでは名前フィールドは必須入力のためnullにならないが、
+  // エッジケース（customerInfoがnullまたは名前フィールドがnull）に備えてフォールバック
+  const nameDisplayOrder = t('reservation.customerForm.nameDisplayOrder');
+  const isFamilyFirst = nameDisplayOrder === 'familyFirst';
+  const lastName = customerInfo?.reserverLastName || '';
+  const firstName = customerInfo?.reserverFirstName || '';
+  const displayName = isFamilyFirst
+    ? `${lastName} ${firstName}`.trim()
+    : `${firstName} ${lastName}`.trim();
 
   return (
     <div className="reservation-confirm-page">
@@ -29,30 +124,78 @@ const ReservationConfirmPage = () => {
         <h1>{t('reservation.confirmPage.title')}</h1>
       </header>
       <main>
-        <div className="dummy-content">
-          <div className="dummy-message">
-            <p>{t('reservation.confirmPage.dummyMessage')}</p>
-            <p className="reservation-id">
-              {t('reservation.confirmPage.reservationId')}:{' '}
-              <strong>{reservationId}</strong>
-            </p>
-          </div>
-          <div className="button-container">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleBack}
-            >
-              {t('reservation.confirmPage.backButton')}
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleConfirm}
-            >
-              {t('reservation.confirmPage.confirmButton')}
-            </button>
-          </div>
+        <p className="instruction">
+          {t('reservation.confirmPage.instruction')}
+        </p>
+
+        {/* 予約サマリー（共通コンポーネント） */}
+        <ReservationSummary reservation={reservation} />
+
+        {/* 宿泊者情報（確認用表示） */}
+        <section className="customer-info-confirm">
+          <h3>{t('reservation.confirmPage.customerInfoTitle')}</h3>
+          <dl className="confirm-list">
+            <dt>{t('reservation.confirmPage.guestName')}</dt>
+            <dd>
+              {displayName} {t('reservation.confirmPage.honorific')}
+            </dd>
+
+            <dt>{t('reservation.confirmPage.phoneNumber')}</dt>
+            <dd>
+              {customerInfo?.phoneNumber ||
+                t('reservation.confirmPage.notRegistered')}
+            </dd>
+
+            <dt>{t('reservation.confirmPage.emailAddress')}</dt>
+            <dd>
+              {customerInfo?.emailAddress ||
+                t('reservation.confirmPage.notRegistered')}
+            </dd>
+
+            <dt>{t('reservation.confirmPage.arriveAt')}</dt>
+            {/*
+              arriveAtは正規フローではnullにならないが、以下のエッジケースに備えて
+              フォールバック値を提供する:
+              - APIレスポンスの不整合（サーバーバグ、DBマイグレーション中など）
+              - 古いキャッシュデータの参照
+              - 開発/テスト環境での不完全なテストデータ
+              これにより、UIがクラッシュせずに "--:--" を表示し、問題を視覚的に検出可能にする。
+            */}
+            <dd>{reservation.arriveAt?.substring(0, 5) || '--:--'}</dd>
+          </dl>
+        </section>
+
+        <div className="button-container">
+          <button
+            type="button"
+            className="btn btn-danger"
+            onClick={handleCancel}
+            disabled={isCancelling || isConfirming}
+          >
+            {isCancelling
+              ? t('reservation.confirmPage.cancellingButton')
+              : t('reservation.confirmPage.cancelButton')}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleBack}
+            disabled={isCancelling || isConfirming}
+          >
+            {t('reservation.confirmPage.backButton')}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={handleConfirm}
+            disabled={isConfirming || isCancelling}
+          >
+            {isConfirming
+              ? t('reservation.confirmPage.confirmingButton')
+              : t('reservation.confirmPage.confirmButton')}
+          </button>
         </div>
       </main>
     </div>

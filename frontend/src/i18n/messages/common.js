@@ -64,8 +64,7 @@ export const commonMessages = {
       },
       api: {
         serverError: 'A server error occurred. Please try again later',
-        networkError:
-          'A network error occurred. Please check your connection',
+        networkError: 'A network error occurred. Please check your connection',
         invalidRequest:
           'There is an issue with the request format. Please reload the page and try again',
         notFound:
@@ -74,8 +73,7 @@ export const commonMessages = {
           'This operation is not allowed. Please reload the page and try again',
         businessRuleViolation:
           'The input values violate system constraints. Please enter correct values',
-        searchFailed:
-          'Search failed. Please try again with different criteria',
+        searchFailed: 'Search failed. Please try again with different criteria',
       },
     },
 

@@ -63,6 +63,9 @@ Thumbs.db
 # ローカル開発用のアプリ設定（機密を含む可能性があるため除外）
 /backend/src/main/resources/application.properties
 
+# ランタイム設定（環境固有のオーバーライド）
+/backend/src/main/resources/runtime-config.properties
+
 # ---------------------------------
 # デバッグ用ファイル (Debug Files)
 # ---------------------------------
