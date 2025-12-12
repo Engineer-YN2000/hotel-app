@@ -266,7 +266,7 @@ public class ReservationController {
     }
     catch (ReservationExpiredException e) {
       // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる
-      log.warn(messageSource.getMessage("log.customer.violation.expired",
+      log.warn(messageSource.getMessage("log.reservation.violation.expired",
           new Object[]{e.getReservationId(), e.getMessage()}, Locale.getDefault()));
       // フロントエンドで期限切れを識別できるようにerrorコードを返却
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("RESERVATION_EXPIRED", 410,
@@ -418,7 +418,7 @@ public class ReservationController {
     }
     catch (ReservationExpiredException e) {
       // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる
-      log.warn(messageSource.getMessage("log.customer.violation.expired",
+      log.warn(messageSource.getMessage("log.reservation.violation.expired",
           new Object[]{e.getReservationId(), e.getMessage()}, Locale.getDefault()));
       // フロントエンドで期限切れを識別できるようにerrorコードを返却
       ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("RESERVATION_EXPIRED", 410,

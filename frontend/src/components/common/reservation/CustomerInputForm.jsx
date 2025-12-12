@@ -53,6 +53,10 @@ const CustomerInputForm = ({
   const [state, dispatch] = useReducer(formReducer, initialState);
 
   // 初期データがある場合はフォームにセット
+  // 【依存配列について】initialDataはAPIレスポンスから取得され、
+  // データ変更時は必ず新しいオブジェクト参照が渡されるため、
+  // 浅い比較（オブジェクト参照の変更検知）で十分。
+  // 個別フィールドの依存は不要。
   useEffect(() => {
     if (initialData) {
       dispatch({

@@ -6,6 +6,14 @@ import { useEffect, useState } from 'react';
  * 指定された予約IDとアクセストークンに基づいて予約情報をAPIから取得する。
  * P-020（予約詳細入力）およびP-030（予約確認）で共通利用。
  *
+ * 【トランザクション整合性について】
+ * reservationIdとaccessTokenは仮予約作成時に1対1で生成され、
+ * 以降の画面遷移（P-020→P-030→P-040）で不変のまま引き継がれる。
+ * 同一コンポーネントインスタンス内でこれらが変更されるのは、
+ * ユーザーがURL直打ちやブラウザ履歴操作を行った場合のみ。
+ * これらは正規フロー外の操作であり、バックエンドでのトークン検証により
+ * 不正アクセスは404として処理される。
+ *
  * @param {string} reservationId - 予約ID
  * @param {string} accessToken - アクセストークン（HMAC-SHA256署名）
  * @returns {{
@@ -21,6 +29,12 @@ const useReservation = (reservationId, accessToken) => {
 
   useEffect(() => {
     const fetchReservation = async () => {
+      // 【状態リセット】reservationIdまたはaccessTokenが変更された場合に備え、
+      // 前回の状態をクリアしてから新規取得を開始（防御的プログラミング）
+      setReservation(null);
+      setErrorState(null);
+      setLoading(true);
+
       // トークンがない場合は即座にNOT_FOUND
       if (!accessToken) {
         setErrorState('NOT_FOUND');

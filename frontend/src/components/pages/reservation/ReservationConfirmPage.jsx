@@ -102,11 +102,15 @@ const ReservationConfirmPage = () => {
   const customerInfo = reservation?.customerInfo;
 
   // 名前の表示順序を言語設定に応じて決定
+  // 【防御的プログラミング】正規フローでは名前フィールドは必須入力のためnullにならないが、
+  // エッジケース（customerInfoがnullまたは名前フィールドがnull）に備えてフォールバック
   const nameDisplayOrder = t('reservation.customerForm.nameDisplayOrder');
   const isFamilyFirst = nameDisplayOrder === 'familyFirst';
+  const lastName = customerInfo?.reserverLastName || '';
+  const firstName = customerInfo?.reserverFirstName || '';
   const displayName = isFamilyFirst
-    ? `${customerInfo?.reserverLastName} ${customerInfo?.reserverFirstName}`
-    : `${customerInfo?.reserverFirstName} ${customerInfo?.reserverLastName}`;
+    ? `${lastName} ${firstName}`.trim()
+    : `${firstName} ${lastName}`.trim();
 
   return (
     <div className="reservation-confirm-page">

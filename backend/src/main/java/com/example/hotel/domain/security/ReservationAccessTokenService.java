@@ -9,6 +9,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
@@ -41,13 +42,25 @@ public class ReservationAccessTokenService {
 
   private static final String HMAC_ALGORITHM = "HmacSHA256";
 
+  private final MessageSource messageSource;
+
+  /**
+   * コンストラクタ
+   *
+   * @param messageSource メッセージソース
+   */
+  public ReservationAccessTokenService(MessageSource messageSource) {
+    this.messageSource = messageSource;
+  }
+
   /**
    * HMACシークレットキー
    *
-   * 環境変数 RESERVATION_ACCESS_TOKEN_SECRET から取得。
-   * 未設定の場合はデフォルト値を使用（本番環境では必ず設定すること）。
+   * プロパティキー reservation.access-token.secret で設定（必須）。
+   * 環境変数またはプロパティファイルで設定可能。
+   * 未設定の場合はアプリケーション起動時にエラーとなる。
    */
-  @Value("${reservation.access-token.secret:CHANGE_THIS_SECRET_IN_PRODUCTION}")
+  @Value("${reservation.access-token.secret}")
   private String secretKey;
 
   private SecretKeySpec secretKeySpec;
@@ -60,11 +73,8 @@ public class ReservationAccessTokenService {
   @PostConstruct
   public void init() {
     if (secretKey == null || secretKey.isBlank()) {
-      throw new IllegalStateException("reservation.access-token.secret is not configured");
-    }
-    if ("CHANGE_THIS_SECRET_IN_PRODUCTION".equals(secretKey)) {
-      log.warn("Using default secret key. "
-          + "Please set RESERVATION_ACCESS_TOKEN_SECRET environment variable in production.");
+      throw new IllegalStateException(
+          messageSource.getMessage("error.access.token.secret.notconfigured", null, null));
     }
     this.secretKeySpec = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8),
         HMAC_ALGORITHM);

@@ -162,9 +162,9 @@ public class ReservationService {
             r.getRoomTypeName(), r.getRoomCapacity(), r.getRoomCount()))
         .collect(Collectors.toList());
 
-    // 顧客情報をDTOに変換（予約者が未登録の場合はnull）
+    // 顧客情報をDTOに変換（予約者の姓名が両方揃っている場合のみ）
     ReservationResponseDto.CustomerInfoDto customerInfo = null;
-    if (first.getReserverFirstName() != null || first.getReserverLastName() != null) {
+    if (first.getReserverFirstName() != null && first.getReserverLastName() != null) {
       customerInfo = new ReservationResponseDto.CustomerInfoDto(first.getReserverFirstName(),
           first.getReserverLastName(), first.getPhoneNumber(), first.getEmailAddress());
     }
