@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.hotel.domain.exception.ReservationExpiredException;
+import com.example.hotel.domain.exception.SessionTokenMismatchException;
 import com.example.hotel.domain.security.ReservationAccessTokenService;
 import com.example.hotel.domain.service.ReservationService;
 import com.example.hotel.presentation.dto.common.ApiErrorResponseDto;
@@ -99,17 +100,17 @@ public class ReservationController {
       log.info(messageSource.getMessage("log.reservation.request.received", new Object[]{request},
           Locale.getDefault()));
 
-      Integer reservationId = reservationService.createTentativeReservation(request);
+      var result = reservationService.createTentativeReservation(request);
 
-      log.info(messageSource.getMessage("log.reservation.success", new Object[]{reservationId},
-          Locale.getDefault()));
+      log.debug(messageSource.getMessage("log.reservation.success",
+          new Object[]{result.reservationId()}, Locale.getDefault()));
 
       // アクセストークンを生成
-      String accessToken = accessTokenService.generateToken(reservationId);
+      String accessToken = accessTokenService.generateToken(result.reservationId());
 
-      // 成功時: IDとアクセストークンを返す
-      return ResponseEntity.ok(Map.of("reservationId", reservationId, "accessToken", accessToken));
-
+      // 成功時: ID、アクセストークン、セッショントークンを返す
+      return ResponseEntity.ok(Map.of("reservationId", result.reservationId(), "accessToken",
+          accessToken, "sessionToken", result.sessionToken()));
     }
     catch (IllegalStateException e) {
       // 在庫不足エラー (No Stock)
@@ -168,7 +169,7 @@ public class ReservationController {
       @RequestParam String token) {
     // トークン検証（不正時は404で存在有無を隠蔽）
     if (!accessTokenService.validateToken(id, token)) {
-      log.warn("Invalid access token for reservation: id={}", id);
+      log.debug("Invalid access token for reservation: id={}", id);
       return ResponseEntity.notFound().build();
     }
 
@@ -202,6 +203,7 @@ public class ReservationController {
    *
    * 【セキュリティ】
    * - アクセストークンによる認可チェック必須
+   * - セッショントークンによる同時操作防止
    * - トークン不正時は404を返却（ID存在有無を隠蔽）
    *
    * 【ビジネスロジック検証】
@@ -210,15 +212,17 @@ public class ReservationController {
    *
    * @param id 予約ID
    * @param token アクセストークン（HMAC-SHA256署名）
+   * @param sessionToken セッショントークン（10分間有効、同時操作防止用）
    * @param request 顧客情報リクエストDTO
    * @return 成功時: 200 OK
    *         トークン不正: 404 Not Found
+   *         セッショントークン不一致: 409 Conflict
    *         バリデーションエラー時: 422 Unprocessable Entity
    *         サーバーエラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/customer-info")
   public ResponseEntity<?> upsertCustomerInfo(@PathVariable Integer id, @RequestParam String token,
-      @Valid @RequestBody CustomerRequestDto request) {
+      @RequestParam String sessionToken, @Valid @RequestBody CustomerRequestDto request) {
     // トークン検証（不正時は404で存在有無を隠蔽）
     if (!accessTokenService.validateToken(id, token)) {
       log.warn("Invalid access token for customer-info: id={}", id);
@@ -226,6 +230,9 @@ public class ReservationController {
     }
 
     try {
+      // セッショントークン検証（同時操作防止）
+      reservationService.validateSessionToken(id, sessionToken);
+
       // 【検証1】電話番号のフォーマット検証（入力がある場合のみ）
       if (!isBlank(request.getPhoneNumber())
           && !request.getPhoneNumber().matches(PHONE_NUMBER_PATTERN)) {
@@ -263,6 +270,13 @@ public class ReservationController {
       // 成功時: 200 OK
       return ResponseEntity.ok().build();
 
+    }
+    catch (SessionTokenMismatchException e) {
+      // セッショントークン不一致（別タブ/端末からの同時操作）
+      log.warn("Session token mismatch for customer-info: id={}, message={}", id, e.getMessage());
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("SESSION_TOKEN_MISMATCH", 409,
+          "/api/reservations/" + id + "/customer-info");
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
     catch (ReservationExpiredException e) {
       // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる
@@ -311,27 +325,41 @@ public class ReservationController {
    *
    * 【セキュリティ】
    * - アクセストークンによる認可チェック必須
+   * - セッショントークンによる同時操作防止
    * - トークン不正時は404を返却（ID存在有無を隠蔽）
    *
    * @param id 予約ID
    * @param token アクセストークン（HMAC-SHA256署名）
+   * @param sessionToken セッショントークン（10分間有効、同時操作防止用）
    * @return 成功時: 200 OK
    *         トークン不正: 404 Not Found
+   *         セッショントークン不一致: 409 Conflict
    *         エラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/cancel")
-  public ResponseEntity<?> cancelReservation(@PathVariable Integer id, @RequestParam String token) {
+  public ResponseEntity<?> cancelReservation(@PathVariable Integer id, @RequestParam String token,
+      @RequestParam String sessionToken) {
     // トークン検証（不正時は404で存在有無を隠蔽）
     if (!accessTokenService.validateToken(id, token)) {
-      log.warn("Invalid access token for cancel: id={}", id);
+      log.debug("Invalid access token for cancel: id={}", id);
       return ResponseEntity.notFound().build();
     }
 
     try {
-      log.info("Cancel reservation request received: id={}", id);
+      // セッショントークン検証（同時操作防止）
+      reservationService.validateSessionToken(id, sessionToken);
+
+      log.debug("Cancel reservation request received: id={}", id);
       int updated = reservationService.cancelReservation(id);
-      log.info("Cancel reservation completed: id={}, updated={}", id, updated);
+      log.debug("Cancel reservation completed: id={}, updated={}", id, updated);
       return ResponseEntity.ok().build();
+    }
+    catch (SessionTokenMismatchException e) {
+      // セッショントークン不一致（別タブ/端末からの同時操作）
+      log.warn("Session token mismatch for cancel: id={}, message={}", id, e.getMessage());
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("SESSION_TOKEN_MISMATCH", 409,
+          "/api/reservations/" + id + "/cancel");
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
     catch (Exception e) {
       // サーバーエラー
@@ -365,14 +393,14 @@ public class ReservationController {
   public ResponseEntity<?> expireReservation(@PathVariable Integer id, @RequestParam String token) {
     // トークン検証（不正時は404で存在有無を隠蔽）
     if (!accessTokenService.validateToken(id, token)) {
-      log.warn("Invalid access token for expire: id={}", id);
+      log.debug("Invalid access token for expire: id={}", id);
       return ResponseEntity.notFound().build();
     }
 
     try {
-      log.info("Expire reservation request received: id={}", id);
+      log.debug("Expire reservation request received: id={}", id);
       int updated = reservationService.expireReservation(id);
-      log.info("Expire reservation completed: id={}, updated={}", id, updated);
+      log.debug("Expire reservation completed: id={}, updated={}", id, updated);
       return ResponseEntity.ok().build();
     }
     catch (Exception e) {
@@ -392,29 +420,42 @@ public class ReservationController {
    *
    * 【セキュリティ】
    * - アクセストークンによる認可チェック必須
+   * - セッショントークンによる同時操作防止
    * - トークン不正時は404を返却（ID存在有無を隠蔽）
    *
    * @param id 予約ID
    * @param token アクセストークン（HMAC-SHA256署名）
+   * @param sessionToken セッショントークン（10分間有効、同時操作防止用）
    * @return 成功時: 200 OK
    *         トークン不正: 404 Not Found
+   *         セッショントークン不一致: 409 Conflict
    *         期限切れ時: 410 Gone
    *         エラー時: 500 Internal Server Error
    */
   @PostMapping("/{id}/confirm")
-  public ResponseEntity<?> confirmReservation(@PathVariable Integer id,
-      @RequestParam String token) {
+  public ResponseEntity<?> confirmReservation(@PathVariable Integer id, @RequestParam String token,
+      @RequestParam String sessionToken) {
     // トークン検証（不正時は404で存在有無を隠蔽）
     if (!accessTokenService.validateToken(id, token)) {
-      log.warn("Invalid access token for confirm: id={}", id);
+      log.debug("Invalid access token for confirm: id={}", id);
       return ResponseEntity.notFound().build();
     }
 
     try {
-      log.info("Confirm reservation request received: id={}", id);
+      // セッショントークン検証（同時操作防止）
+      reservationService.validateSessionToken(id, sessionToken);
+
+      log.debug("Confirm reservation request received: id={}", id);
       reservationService.confirmReservation(id);
-      log.info("Confirm reservation completed: id={}", id);
+      log.debug("Confirm reservation completed: id={}", id);
       return ResponseEntity.ok().build();
+    }
+    catch (SessionTokenMismatchException e) {
+      // セッショントークン不一致（別タブ/端末からの同時操作）
+      log.warn("Session token mismatch for confirm: id={}, message={}", id, e.getMessage());
+      ApiErrorResponseDto errorResponse = ApiErrorResponseDto.create("SESSION_TOKEN_MISMATCH", 409,
+          "/api/reservations/" + id + "/confirm");
+      return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
     }
     catch (ReservationExpiredException e) {
       // 仮予約期限切れ → P-910（SessionExpiredError）へ遷移させる

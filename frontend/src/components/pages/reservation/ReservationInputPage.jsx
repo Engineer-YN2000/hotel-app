@@ -19,6 +19,7 @@ const ReservationInputPage = () => {
   const { reservationId } = useParams();
   const [searchParams] = useSearchParams();
   const accessToken = searchParams.get('token');
+  const sessionToken = searchParams.get('sessionToken');
   const navigate = useNavigate();
 
   const { reservation, loading, errorState } = useReservation(
@@ -28,6 +29,7 @@ const ReservationInputPage = () => {
   const { isCancelling, handleCancel } = useCancelReservation(
     reservationId,
     accessToken,
+    sessionToken,
     {
       confirmMessage: t('reservation.inputPage.confirmCancel'),
       errorMessage: t('reservation.inputPage.cancelError'),
@@ -44,7 +46,7 @@ const ReservationInputPage = () => {
   const handleSubmitCustomerInfo = async (formData) => {
     try {
       const res = await fetch(
-        `/api/reservations/${reservationId}/customer-info?token=${encodeURIComponent(accessToken)}`,
+        `/api/reservations/${reservationId}/customer-info?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -56,8 +58,12 @@ const ReservationInputPage = () => {
         console.log(t('reservation.inputPage.processingComplete'));
         // P-030（確認画面）へ遷移（トークンを引き継ぐ）
         navigate(
-          `/reservation/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}`,
+          `/reservation/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
         );
+      } else if (res.status === 409) {
+        // 409 Conflict: セッショントークン不一致（別タブ/端末からの操作検出）
+        alert(t('reservation.inputPage.sessionConflict'));
+        navigate('/', { replace: true });
       } else if (res.status === 410) {
         // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
         // キャンセル処理のためreservationIdとaccessTokenを渡す

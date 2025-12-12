@@ -17,6 +17,8 @@ export const reservationMessages = {
         networkError: '通信エラーが発生しました。',
         confirmCancel: 'この予約をキャンセルしてトップページへ戻りますか？',
         cancelError: '予約のキャンセルに失敗しました。',
+        sessionConflict:
+          '別のタブまたは端末から操作が検出されました。トップページへ戻ります。',
       },
       // P-030 予約確認ページ
       confirmPage: {
@@ -40,6 +42,13 @@ export const reservationMessages = {
         cancellingButton: 'キャンセル中...',
         confirmCancel: 'この予約をキャンセルしてトップページへ戻りますか？',
         cancelError: '予約のキャンセルに失敗しました。',
+        sessionConflict:
+          '別のタブまたは端末から操作が検出されました。トップページへ戻ります。',
+      },
+      // 共通メッセージ
+      common: {
+        sessionConflict:
+          '別のタブまたは端末から操作が検出されました。トップページへ戻ります。',
       },
       // P-040 予約完了ページ
       completePage: {
@@ -104,6 +113,8 @@ export const reservationMessages = {
         networkError: 'Network error occurred.',
         confirmCancel: 'Cancel this reservation and return to the top page?',
         cancelError: 'Failed to cancel the reservation.',
+        sessionConflict:
+          'Operation detected from another tab or device. Returning to top page.',
       },
       // P-030 Reservation Confirmation Page
       confirmPage: {
@@ -127,6 +138,13 @@ export const reservationMessages = {
         cancellingButton: 'Cancelling...',
         confirmCancel: 'Cancel this reservation and return to the top page?',
         cancelError: 'Failed to cancel the reservation.',
+        sessionConflict:
+          'Operation detected from another tab or device. Returning to top page.',
+      },
+      // Common messages
+      common: {
+        sessionConflict:
+          'Operation detected from another tab or device. Returning to top page.',
       },
       // P-040 Reservation Complete Page
       completePage: {

@@ -102,6 +102,15 @@ public interface ReservationDao {
   Integer selectReserverId(Integer reservationId);
 
   /**
+   * 指定された予約IDのセッショントークンを取得します。
+   *
+   * @param reservationId 予約ID
+   * @return セッショントークン（予約が存在しない場合はnull）
+   */
+  @Select
+  String selectSessionToken(Integer reservationId);
+
+  /**
    * 仮予約をキャンセル（CANCELLEDステータス）に更新します。
    *
    * 指定された予約IDがTENTATIVEステータスかつpending_limit_atが現在時刻以降の場合のみ更新します。

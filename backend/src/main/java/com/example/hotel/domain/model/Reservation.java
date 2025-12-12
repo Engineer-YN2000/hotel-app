@@ -25,6 +25,10 @@ public class Reservation {
   @Column(name = "reserver_id")
   private final Integer reserverId;
 
+  /** セッション識別トークン（複数タブ/端末からの操作検知用） */
+  @Column(name = "session_token")
+  private final String sessionToken;
+
   @Column(name = "reserved_at")
   private final LocalDateTime reservedAt;
 

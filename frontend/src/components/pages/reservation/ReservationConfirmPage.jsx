@@ -15,6 +15,7 @@ const ReservationConfirmPage = () => {
   const { reservationId } = useParams();
   const [searchParams] = useSearchParams();
   const accessToken = searchParams.get('token');
+  const sessionToken = searchParams.get('sessionToken');
   const navigate = useNavigate();
 
   const { reservation, loading, errorState } = useReservation(
@@ -24,6 +25,7 @@ const ReservationConfirmPage = () => {
   const { isCancelling, handleCancel } = useCancelReservation(
     reservationId,
     accessToken,
+    sessionToken,
     {
       confirmMessage: t('reservation.confirmPage.confirmCancel'),
       errorMessage: t('reservation.confirmPage.cancelError'),
@@ -46,7 +48,7 @@ const ReservationConfirmPage = () => {
     setIsConfirming(true);
     try {
       const res = await fetch(
-        `/api/reservations/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}`,
+        `/api/reservations/${reservationId}/confirm?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
         {
           method: 'POST',
         },
@@ -58,6 +60,10 @@ const ReservationConfirmPage = () => {
         navigate(`/reservation/${reservationId}/complete`, {
           state: { fromConfirm: true },
         });
+      } else if (res.status === 409) {
+        // 409 Conflict: セッショントークン不一致（別タブ/端末からの操作検出）
+        alert(t('reservation.confirmPage.sessionConflict'));
+        navigate('/', { replace: true });
       } else if (res.status === 410) {
         // 410 Gone: 予約期限切れ → P-910（SessionExpiredError）へ遷移
         navigate('/session-expired', { state: { reservationId, accessToken } });
@@ -78,7 +84,7 @@ const ReservationConfirmPage = () => {
    */
   const handleBack = () => {
     navigate(
-      `/reservation/${reservationId}?token=${encodeURIComponent(accessToken)}`,
+      `/reservation/${reservationId}?token=${encodeURIComponent(accessToken)}&sessionToken=${encodeURIComponent(sessionToken)}`,
     );
   };
 

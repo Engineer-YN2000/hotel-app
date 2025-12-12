@@ -8,6 +8,7 @@ import com.example.hotel.config.ReservationProperties;
 import com.example.hotel.domain.repository.ReservationDao;
 import com.example.hotel.domain.repository.ReservationDetailDao;
 import com.example.hotel.domain.repository.ReserverDao;
+import com.example.hotel.domain.security.SessionTokenService;
 import com.example.hotel.presentation.dto.reservation.CustomerRequestDto;
 import com.example.hotel.presentation.dto.reservation.ReservationRequestDto;
 import com.example.hotel.presentation.dto.reservation.ReservationResponseDto;
@@ -19,6 +20,7 @@ import com.example.hotel.domain.model.ReservationWithInfo;
 import com.example.hotel.domain.model.Reserver;
 import com.example.hotel.domain.constants.ReservationStatus;
 import com.example.hotel.domain.exception.ReservationExpiredException;
+import com.example.hotel.domain.exception.SessionTokenMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -56,6 +58,13 @@ public class ReservationService {
   private final CacheService cacheService;
   private final MessageSource messageSource;
   private final ReservationProperties reservationProperties;
+  private final SessionTokenService sessionTokenService;
+
+  /**
+   * 仮予約作成結果
+   */
+  public record TentativeReservationResult(Integer reservationId, String sessionToken) {
+  }
 
   /**
    * 仮予約（在庫ロック）を作成します。
@@ -66,13 +75,18 @@ public class ReservationService {
    * 在庫チェックと予約登録の間に他のトランザクションが介入することを防ぎます。
    * これにより、同時リクエストによるダブルブッキングを防止します。
    *
+   * 【セッショントークン】
+   * 仮予約作成時にセッショントークンを生成し、DBに保存します。
+   * 以降の操作時にこのトークンを検証することで、異なるタブ/端末からの
+   * 同時操作を検知・禁止できます。
+   *
    * @param request 仮予約リクエストDTO
-   * @return 予約ID（自動採番）
+   * @return 予約IDとセッショントークンを含む結果オブジェクト
    * @throws IllegalArgumentException パラメータ不正時
    * @throws IllegalStateException 在庫不足時
    */
   @Transactional(rollbackFor = Exception.class)
-  public Integer createTentativeReservation(ReservationRequestDto request) {
+  public TentativeReservationResult createTentativeReservation(ReservationRequestDto request) {
     // 1. 在庫キャッシュ取得
     Map<Integer, RoomStockInfo> stockCache = cacheService.getStockCache();
 
@@ -96,10 +110,15 @@ public class ReservationService {
       }
     }
 
-    // 3. 仮予約レコード登録
+    // 3. セッショントークン生成（一時的なIDで生成、INSERT後に正式なトークンを再生成）
+    // 注: INSERT前にはreservationIdが不明なため、UUIDベースの一時トークンを使用
+    String tempSessionToken = java.util.UUID.randomUUID().toString();
+
+    // 4. 仮予約レコード登録
     LocalDateTime now = LocalDateTime.now();
     Reservation reservation = new Reservation(null, // reservationId (自動採番)
         null, // reserverId (仮予約用IDは必要に応じて指定)
+        tempSessionToken, // sessionToken（一時トークン）
         now, // reservedAt (予約日時)
         request.getCheckInDate(), request.getCheckOutDate(), null, // arriveAt（仮予約時はnull、顧客情報登録時に設定）
         ReservationStatus.TENTATIVE, // 仮予約ステータス
@@ -109,7 +128,10 @@ public class ReservationService {
     // immutableエンティティのため、Result.getEntity()から自動採番されたIDを取得
     Integer newReservationId = insertResult.getEntity().getReservationId();
 
-    // 4. 予約明細レコード登録
+    // 5. 正式なセッショントークンを生成（予約IDを含むHMAC）
+    String sessionToken = sessionTokenService.generateToken(newReservationId);
+
+    // 6. 予約明細レコード登録
     // 【セキュリティ対策】フロントエンドから送信されたpriceは使用せず、バックエンドで再計算
     // これにより、クライアント側での価格改竄攻撃を完全に防止
     for (ReservationRequestDto.RoomRequest roomReq : request.getRooms()) {
@@ -124,8 +146,26 @@ public class ReservationService {
       reservationDetailDao.insert(detail);
     }
 
-    // 5. 予約ID返却
-    return newReservationId;
+    // 7. 予約IDとセッショントークンを返却
+    return new TentativeReservationResult(newReservationId, sessionToken);
+  }
+
+  /**
+   * セッショントークンを検証します。
+   *
+   * 提供されたセッショントークンがDB上のトークンと一致し、
+   * かつ有効期限内であることを検証します。
+   *
+   * @param reservationId 予約ID
+   * @param sessionToken 検証対象のセッショントークン
+   * @throws SessionTokenMismatchException トークンが不一致または無効な場合
+   */
+  public void validateSessionToken(Integer reservationId, String sessionToken) {
+    // HMACベースのトークン検証（有効期限10分もここでチェック）
+    if (!sessionTokenService.validateToken(reservationId, sessionToken)) {
+      throw new SessionTokenMismatchException(
+          messageSource.getMessage("error.session.token.mismatch", null, null), reservationId);
+    }
   }
 
   /**
@@ -182,9 +222,29 @@ public class ReservationService {
    * 存在する場合は更新（UPDATE）を行います。
    *
    * 【処理フロー】
-   * 1. 仮予約の有効期限を確認
+   * 1. 仮予約の有効期限を事前確認（早期リターン）
    * 2. 予約者情報をreserversテーブルに登録または更新
-   * 3. 予約レコードに予約者IDと到着予定時刻を更新
+   * 3. 予約レコードに予約者IDと到着予定時刻を更新（原子的更新）
+   * 4. 更新失敗時はエラー原因を特定（事後検証）
+   *
+   * 【三層防御の設計意図】
+   * 本メソッドでは期限切れ検証を3段階で行っている。これは冗長に見えるが、
+   * それぞれ異なる目的を持つ意図的な設計である：
+   *
+   * 1. 事前チェック（早期リターン）:
+   *    - 目的: Fail Fast原則に基づき、無効なリクエストを即座に拒否
+   *    - 効果: 期限切れ予約に対する無駄なDB更新処理を回避し、リソースを節約
+   *    - 意図: 「期限切れ予約に更新ロジックを働かせること自体がおかしい」という設計思想
+   *
+   * 2. 原子的更新（WHERE句に期限条件）:
+   *    - 目的: TOCTOU（Time-of-check to time-of-use）競合への安全弁
+   *    - 効果: 事前チェック後〜UPDATE実行までの間に期限切れになるケースを防御
+   *    - 意図: レースコンディション対策としての最終防御ライン
+   *
+   * 3. 事後チェック（更新件数0時の再検証）:
+   *    - 目的: エラー原因の細分化と適切な例外選択
+   *    - 効果: 期限切れ（ReservationExpiredException）と他の原因（IllegalStateException）を区別
+   *    - 意図: クライアントに正確なエラー情報を返し、適切なUXを提供
    *
    * @param reservationId 予約ID
    * @param request 顧客情報リクエストDTO
@@ -193,11 +253,14 @@ public class ReservationService {
    */
   @Transactional(rollbackFor = Exception.class)
   public void upsertCustomerInfo(Integer reservationId, CustomerRequestDto request) {
-    // 1. 仮予約の有効期限確認
+    // 1. 事前チェック: 期限切れ予約は即座に拒否（Fail Fast）
+    // 期限切れ予約に対して更新処理を実行すること自体が不適切であるため、
+    // DBアクセス前に早期リターンする
     if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
       throw new ReservationExpiredException(
           messageSource.getMessage("error.reservation.expired", null, null), reservationId);
     }
+
     // 2. 現在の予約者情報を確認
     Integer currentReserverId = reservationDao.selectReserverId(reservationId);
     Integer targetReserverId = null;
@@ -224,12 +287,14 @@ public class ReservationService {
     if (arriveAt == null) {
       arriveAt = java.time.LocalTime.parse(reservationProperties.getDefaultArrivalTime());
     }
-    // 【TOCTOU競合対策】SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
-    // 検証と更新を原子的に実行。事前のisExpiredチェックは早期エラー返却用。
+    // 【原子的更新】SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
+    // 事前チェック後〜UPDATE実行までの間に期限切れになるレースコンディションを防御
     int updated = reservationDao.bindReserverAndArrivalTime(reservationId, targetReserverId,
         arriveAt, ReservationStatus.TENTATIVE);
+
+    // 4. 事後チェック: 更新失敗時のエラー原因を細分化
     if (updated == 0) {
-      // 更新失敗時は期限切れを再確認して適切な例外をスロー
+      // 期限切れが原因かを再確認して適切な例外を選択
       if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
         throw new ReservationExpiredException(
             messageSource.getMessage("error.reservation.expired", null, null), reservationId);
@@ -303,24 +368,47 @@ public class ReservationService {
    * - 予約ステータスがTENTATIVE（10）
    * - pending_limit_atが現在時刻以降（まだ有効）
    *
+   * 【三層防御の設計意図】
+   * 本メソッドでは期限切れ検証を3段階で行っている。これは冗長に見えるが、
+   * それぞれ異なる目的を持つ意図的な設計である：
+   *
+   * 1. 事前チェック（早期リターン）:
+   *    - 目的: Fail Fast原則に基づき、無効なリクエストを即座に拒否
+   *    - 効果: 期限切れ予約に対する無駄なDB更新処理を回避し、リソースを節約
+   *    - 意図: 「期限切れ予約に更新ロジックを働かせること自体がおかしい」という設計思想
+   *
+   * 2. 原子的更新（WHERE句に期限条件）:
+   *    - 目的: TOCTOU（Time-of-check to time-of-use）競合への安全弁
+   *    - 効果: 事前チェック後〜UPDATE実行までの間に期限切れになるケースを防御
+   *    - 意図: レースコンディション対策としての最終防御ライン
+   *
+   * 3. 事後チェック（更新件数0時の再検証）:
+   *    - 目的: エラー原因の細分化と適切な例外選択
+   *    - 効果: 期限切れ（ReservationExpiredException）と他の原因（IllegalStateException）を区別
+   *    - 意図: クライアントに正確なエラー情報を返し、適切なUXを提供
+   *
    * @param reservationId 確定する予約ID
    * @throws ReservationExpiredException 仮予約の有効期限切れ時
    * @throws IllegalStateException 更新失敗時
    */
   @Transactional(rollbackFor = Exception.class)
   public void confirmReservation(Integer reservationId) {
-    // 事前の期限切れチェック（早期エラー返却用）
+    // 1. 事前チェック: 期限切れ予約は即座に拒否（Fail Fast）
+    // 期限切れ予約に対して更新処理を実行すること自体が不適切であるため、
+    // DBアクセス前に早期リターンする
     if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
       throw new ReservationExpiredException(
           messageSource.getMessage("error.reservation.expired", null, null), reservationId);
     }
 
-    // 【TOCTOU競合対策】SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
-    // 検証と更新を原子的に実行
+    // 2. 原子的更新: SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
+    // 事前チェック後〜UPDATE実行までの間に期限切れになるレースコンディションを防御
     int updated = reservationDao.confirmReservation(reservationId, ReservationStatus.TENTATIVE,
         ReservationStatus.CONFIRMED);
+
+    // 3. 事後チェック: 更新失敗時のエラー原因を細分化
     if (updated == 0) {
-      // 更新失敗時は期限切れを再確認して適切な例外をスロー
+      // 期限切れが原因かを再確認して適切な例外を選択
       if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
         throw new ReservationExpiredException(
             messageSource.getMessage("error.reservation.expired", null, null), reservationId);

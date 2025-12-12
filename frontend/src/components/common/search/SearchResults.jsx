@@ -213,10 +213,10 @@ const SearchResults = ({
         throw new Error('Reservation API error');
       }
       // 正常時はP-020（予約詳細入力ページ）へ遷移
-      // レスポンスには reservationId と accessToken が含まれる
+      // レスポンスには reservationId, accessToken, sessionToken が含まれる
       const data = await response.json();
       navigate(
-        `/reservation/${data.reservationId}?token=${encodeURIComponent(data.accessToken)}`,
+        `/reservation/${data.reservationId}?token=${encodeURIComponent(data.accessToken)}&sessionToken=${encodeURIComponent(data.sessionToken)}`,
       );
     } catch (error) {
       // エラー時はServerErrorページへ遷移
