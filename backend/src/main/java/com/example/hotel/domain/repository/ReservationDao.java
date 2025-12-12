@@ -104,11 +104,38 @@ public interface ReservationDao {
   /**
    * 指定された予約IDのセッショントークンを取得します。
    *
+   * 以下の条件を満たす場合のみトークンを返します:
+   * - 予約ステータスがTENTATIVE（仮予約）
+   * - pending_limit_atが現在時刻以降（有効期限内）
+   *
+   * これにより、セッショントークンの寿命が予約の寿命と自動的に同期され、
+   * 期限切れや確定済みの予約に対するトークン検証が適切に失敗します。
+   *
    * @param reservationId 予約ID
-   * @return セッショントークン（予約が存在しない場合はnull）
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @return セッショントークン（条件を満たさない場合はnull）
    */
   @Select
-  String selectSessionToken(Integer reservationId);
+  String selectSessionToken(Integer reservationId, Integer tentativeStatus);
+
+  /**
+   * セッショントークンを更新します。
+   *
+   * 仮予約作成時にHMACベースのセッショントークンをDBに保存し、
+   * 以降の操作時にDB照合によるトークン検証を可能にします。
+   * これにより、異なるタブ/端末からの同時操作を即座にブロックできます。
+   *
+   * 以下の条件を満たす場合のみ更新します（原子的検証）:
+   * - 予約ステータスがTENTATIVE（仮予約）
+   * - pending_limit_atが現在時刻以降（有効期限内）
+   *
+   * @param reservationId 予約ID
+   * @param sessionToken 新しいセッショントークン
+   * @param tentativeStatus 仮予約ステータス（ReservationStatus.TENTATIVEを指定）
+   * @return 更新件数（0の場合は対象レコードなし、ステータス不一致、または期限切れ）
+   */
+  @Update(sqlFile = true)
+  int updateSessionToken(Integer reservationId, String sessionToken, Integer tentativeStatus);
 
   /**
    * 仮予約をキャンセル（CANCELLEDステータス）に更新します。

@@ -110,15 +110,15 @@ public class ReservationService {
       }
     }
 
-    // 3. セッショントークン生成（一時的なIDで生成、INSERT後に正式なトークンを再生成）
-    // 注: INSERT前にはreservationIdが不明なため、UUIDベースの一時トークンを使用
-    String tempSessionToken = java.util.UUID.randomUUID().toString();
+    // 3. 仮予約レコード登録（一時的なセッショントークンで登録、INSERT後に正式なトークンで更新）
+    // 注: INSERT前にはreservationIdが不明なため、プレースホルダーを使用
+    String placeholderToken = "PENDING";
 
     // 4. 仮予約レコード登録
     LocalDateTime now = LocalDateTime.now();
     Reservation reservation = new Reservation(null, // reservationId (自動採番)
         null, // reserverId (仮予約用IDは必要に応じて指定)
-        tempSessionToken, // sessionToken（一時トークン）
+        placeholderToken, // sessionToken（プレースホルダー、INSERT後に更新）
         now, // reservedAt (予約日時)
         request.getCheckInDate(), request.getCheckOutDate(), null, // arriveAt（仮予約時はnull、顧客情報登録時に設定）
         ReservationStatus.TENTATIVE, // 仮予約ステータス
@@ -128,8 +128,11 @@ public class ReservationService {
     // immutableエンティティのため、Result.getEntity()から自動採番されたIDを取得
     Integer newReservationId = insertResult.getEntity().getReservationId();
 
-    // 5. 正式なセッショントークンを生成（予約IDを含むHMAC）
+    // 5. 正式なセッショントークンを生成してDBに保存
+    // DB照合方式により、このトークンがDBに保存され、以降の検証で使用される
+    // 新しいタブ/端末で再度仮予約を行うと、このトークンが上書きされ、古いトークンは無効になる
     String sessionToken = sessionTokenService.generateToken(newReservationId);
+    reservationDao.updateSessionToken(newReservationId, sessionToken, ReservationStatus.TENTATIVE);
 
     // 6. 予約明細レコード登録
     // 【セキュリティ対策】フロントエンドから送信されたpriceは使用せず、バックエンドで再計算
@@ -389,7 +392,7 @@ public class ReservationService {
    *
    * @param reservationId 確定する予約ID
    * @throws ReservationExpiredException 仮予約の有効期限切れ時
-   * @throws IllegalStateException 更新失敗時
+   * @throws IllegalStateException 顧客情報未登録時、または更新失敗時
    */
   @Transactional(rollbackFor = Exception.class)
   public void confirmReservation(Integer reservationId) {
@@ -401,19 +404,34 @@ public class ReservationService {
           messageSource.getMessage("error.reservation.expired", null, null), reservationId);
     }
 
-    // 2. 原子的更新: SQLのWHERE句に pending_limit_at > NOW() 条件を含めることで、
-    // 事前チェック後〜UPDATE実行までの間に期限切れになるレースコンディションを防御
+    // 2. 事前チェック: 顧客情報未登録の予約は即座に拒否（Fail Fast）
+    // 顧客情報未登録の予約に対して確定処理を実行すること自体が不適切であるため、
+    // UPDATE前に早期リターンする
+    Integer reserverId = reservationDao.selectReserverId(reservationId);
+    if (reserverId == null) {
+      throw new IllegalStateException(
+          messageSource.getMessage("error.reservation.customer.notregistered", null, null));
+    }
+
+    // 3. 原子的更新: SQLのWHERE句に pending_limit_at > NOW() と reserver_id IS NOT NULL 条件を含めることで、
+    // 事前チェック後〜UPDATE実行までの間に発生するレースコンディションを防御
     int updated = reservationDao.confirmReservation(reservationId, ReservationStatus.TENTATIVE,
         ReservationStatus.CONFIRMED);
 
-    // 3. 事後チェック: 更新失敗時のエラー原因を細分化
+    // 4. 事後チェック: 更新失敗時のエラー原因を細分化
     if (updated == 0) {
-      // 期限切れが原因かを再確認して適切な例外を選択
+      // 期限切れが原因かを再確認
       if (reservationDao.isExpired(reservationId, ReservationStatus.TENTATIVE)) {
         throw new ReservationExpiredException(
             messageSource.getMessage("error.reservation.expired", null, null), reservationId);
       }
-      // 期限切れ以外の原因（予約が存在しない、ステータスが変更された等）
+      // 顧客情報が削除された可能性を確認
+      Integer currentReserverId = reservationDao.selectReserverId(reservationId);
+      if (currentReserverId == null) {
+        throw new IllegalStateException(
+            messageSource.getMessage("error.reservation.customer.notregistered", null, null));
+      }
+      // その他の原因（予約が存在しない、ステータスが変更された等）
       throw new IllegalStateException(
           messageSource.getMessage("error.reservation.update.failed", null, null));
     }

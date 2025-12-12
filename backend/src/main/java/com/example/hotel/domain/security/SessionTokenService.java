@@ -3,7 +3,7 @@ package com.example.hotel.domain.security;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
+import java.security.SecureRandom;
 import java.util.Base64;
 
 import javax.crypto.Mac;
@@ -14,25 +14,34 @@ import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
+import com.example.hotel.domain.constants.ReservationStatus;
+import com.example.hotel.domain.repository.ReservationDao;
+
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * セッショントークン生成・検証サービス
  *
- * 予約作成時のセッションを識別するための時限トークンを生成・検証します。
- * これにより、異なるタブや端末からの同時操作を検知できます。
+ * 予約作成時のセッションを識別するためのトークンを生成・検証します。
+ * これにより、異なるタブや端末からの同時操作を即座にブロックできます。
  *
  * 【セキュリティ設計】
- * - トークン = Base64URL(timestamp + ":" + HMAC-SHA256(secretKey, reservationId + ":" + timestamp))
- * - タイムスタンプをトークンに埋め込み、10分間の有効期限を検証
+ * - トークン = Base64URL(random + ":" + HMAC-SHA256(secretKey, reservationId + ":" + random))
+ * - ランダム値をトークンに埋め込み、改ざん防止とユニーク性を確保
+ * - DB照合方式により、新しいセッション開始時に古いトークンを即座に無効化
  * - ReservationAccessTokenServiceとは異なる秘密鍵を使用
+ *
+ * 【DB照合方式の利点】
+ * - 即時無効化: 新しいタブ/端末でトークン発行→古いトークンは即座に無効
+ * - 単一セッション強制: 同一予約に対して1つのアクティブセッションのみ許可
+ * - 明示的な状態管理: DBで有効なトークンを一元管理
  *
  * 【使用箇所】
  * - POST /api/reservations/pending → トークン生成してDBに保存、レスポンスで返却
- * - POST /api/reservations/{id}/customer-info → トークン検証
- * - POST /api/reservations/{id}/confirm → トークン検証
- * - POST /api/reservations/{id}/cancel → トークン検証
+ * - POST /api/reservations/{id}/customer-info → DB照合によるトークン検証
+ * - POST /api/reservations/{id}/confirm → DB照合によるトークン検証
+ * - POST /api/reservations/{id}/cancel → DB照合によるトークン検証
  */
 @Component
 @PropertySource(value = "classpath:runtime-config.properties", ignoreResourceNotFound = true)
@@ -41,13 +50,17 @@ public class SessionTokenService {
 
   private static final String HMAC_ALGORITHM = "HmacSHA256";
 
-  /** セッショントークンの有効期限（秒） - 10分 */
-  private static final long TOKEN_VALIDITY_SECONDS = 10 * 60;
+  /** ランダム値のバイト長 */
+  private static final int RANDOM_BYTES_LENGTH = 16;
 
   private final MessageSource messageSource;
+  private final ReservationDao reservationDao;
+  private final SecureRandom secureRandom;
 
-  public SessionTokenService(MessageSource messageSource) {
+  public SessionTokenService(MessageSource messageSource, ReservationDao reservationDao) {
     this.messageSource = messageSource;
+    this.reservationDao = reservationDao;
+    this.secureRandom = new SecureRandom();
   }
 
   /**
@@ -77,12 +90,15 @@ public class SessionTokenService {
   /**
    * 予約IDに対するセッショントークンを生成します。
    *
-   * トークン形式: Base64URL(timestamp:HMAC)
-   * - timestamp: トークン生成時刻（Unix秒）
-   * - HMAC: HMAC-SHA256(secretKey, reservationId:timestamp)
+   * トークン形式: Base64URL(random:HMAC)
+   * - random: セキュアランダム値（Base64エンコード）
+   * - HMAC: HMAC-SHA256(secretKey, reservationId:random)
+   *
+   * 生成されたトークンはDBに保存する必要があります。
+   * 新しいトークンを生成すると、古いトークンは自動的に無効になります（DB上書き）。
    *
    * @param reservationId 予約ID
-   * @return 時限セッショントークン
+   * @return セッショントークン
    * @throws IllegalStateException HMAC計算に失敗した場合
    */
   public String generateToken(Integer reservationId) {
@@ -90,8 +106,12 @@ public class SessionTokenService {
       throw new IllegalArgumentException("reservationId must not be null");
     }
 
-    long timestamp = Instant.now().getEpochSecond();
-    String payload = reservationId + ":" + timestamp;
+    // セキュアランダム値を生成
+    byte[] randomBytes = new byte[RANDOM_BYTES_LENGTH];
+    secureRandom.nextBytes(randomBytes);
+    String random = Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+
+    String payload = reservationId + ":" + random;
 
     try {
       Mac mac = Mac.getInstance(HMAC_ALGORITHM);
@@ -99,8 +119,8 @@ public class SessionTokenService {
       byte[] hmacBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
       String hmac = Base64.getUrlEncoder().withoutPadding().encodeToString(hmacBytes);
 
-      // タイムスタンプとHMACを結合してBase64エンコード
-      String tokenData = timestamp + ":" + hmac;
+      // ランダム値とHMACを結合してBase64エンコード
+      String tokenData = random + ":" + hmac;
       return Base64.getUrlEncoder().withoutPadding()
           .encodeToString(tokenData.getBytes(StandardCharsets.UTF_8));
 
@@ -111,12 +131,15 @@ public class SessionTokenService {
   }
 
   /**
-   * セッショントークンを検証します。
+   * セッショントークンを検証します（DB照合方式）。
    *
    * 検証項目:
    * 1. トークンのフォーマットが正しいこと
    * 2. HMACが正しいこと（改ざんされていないこと）
-   * 3. 有効期限内であること（生成から10分以内）
+   * 3. DBに保存されているトークンと一致すること
+   *
+   * DB照合により、新しいセッションでトークンが発行された場合、
+   * 古いトークンは即座に無効となります。
    *
    * @param reservationId 予約ID
    * @param token 検証対象のセッショントークン
@@ -131,26 +154,18 @@ public class SessionTokenService {
       // Base64デコード
       String tokenData = new String(Base64.getUrlDecoder().decode(token), StandardCharsets.UTF_8);
 
-      // タイムスタンプとHMACを分離
+      // ランダム値とHMACを分離
       String[] parts = tokenData.split(":", 2);
       if (parts.length != 2) {
         log.debug("Invalid session token format: reservationId={}", reservationId);
         return false;
       }
 
-      long timestamp = Long.parseLong(parts[0]);
+      String random = parts[0];
       String providedHmac = parts[1];
 
-      // 有効期限チェック（10分）
-      long currentTime = Instant.now().getEpochSecond();
-      if (currentTime - timestamp > TOKEN_VALIDITY_SECONDS) {
-        log.debug("Session token expired: reservationId={}, tokenAge={}s", reservationId,
-            currentTime - timestamp);
-        return false;
-      }
-
-      // HMACを再計算して比較
-      String payload = reservationId + ":" + timestamp;
+      // HMACを再計算して比較（改ざん検知）
+      String payload = reservationId + ":" + random;
       Mac mac = Mac.getInstance(HMAC_ALGORITHM);
       mac.init(secretKeySpec);
       byte[] expectedHmacBytes = mac.doFinal(payload.getBytes(StandardCharsets.UTF_8));
@@ -158,11 +173,34 @@ public class SessionTokenService {
           .encodeToString(expectedHmacBytes);
 
       // タイミング攻撃対策: 固定時間比較
-      return constantTimeEquals(expectedHmac, providedHmac);
+      if (!constantTimeEquals(expectedHmac, providedHmac)) {
+        log.debug("Session token HMAC mismatch: reservationId={}", reservationId);
+        return false;
+      }
+
+      // DB照合: DBに保存されているトークンと一致するか確認
+      // これにより、新しいセッションでトークンが発行された場合、古いトークンは無効となる
+      // また、期限切れや確定済みの予約に対してはトークンが取得できない（nullが返る）
+      String storedToken = reservationDao.selectSessionToken(reservationId,
+          ReservationStatus.TENTATIVE);
+      if (storedToken == null) {
+        log.debug(
+            "No session token found in DB: reservationId={} (not found, expired, or not TENTATIVE)",
+            reservationId);
+        return false;
+      }
+
+      // タイミング攻撃対策: 固定時間比較
+      boolean matches = constantTimeEquals(token, storedToken);
+      if (!matches) {
+        log.debug("Session token does not match DB: reservationId={} (possible concurrent access)",
+            reservationId);
+      }
+      return matches;
 
     }
     catch (IllegalArgumentException e) {
-      // Base64デコードエラー、数値パースエラーなど
+      // Base64デコードエラーなど
       log.debug("Session token validation failed: reservationId={}, error={}", reservationId,
           e.getMessage());
       return false;

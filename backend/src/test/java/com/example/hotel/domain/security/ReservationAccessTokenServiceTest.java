@@ -13,6 +13,17 @@ import org.springframework.context.MessageSource;
  * ReservationAccessTokenService のユニットテスト
  *
  * HMAC-SHA256ベースのアクセストークン生成・検証機能をテストします。
+ *
+ * 【型設計方針：Integer vs int】
+ * 本テストクラスでは予約IDに {@code Integer} 型を使用している。
+ * これは以下の理由による意図的な設計判断である：
+ * - テスト対象クラス（ReservationAccessTokenService）との型整合性を保つ
+ * - DTO/Entity層との型整合性を保つ（Domaは {@code Integer} を使用）
+ * - null値を使用したテストケース（境界値テスト）を可能にする
+ * - オートボクシング/アンボクシングによるバグを防止
+ *
+ * プリミティブ型 {@code int} への変更は、nullテストケースが不可能になり、
+ * テスト対象との型不整合を招くため、意図的に避けている。
  */
 class ReservationAccessTokenServiceTest {
 
